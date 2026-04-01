@@ -1,11 +1,132 @@
-pandas
-numpy
-scikit-learn
-joblib
+# ============================================================
+# Property Valuation Agentic Advisor - Requirements
+# ============================================================
+# This file defines all dependencies required to run the
+# Property Valuation Agentic Advisor, including the core ML
+# pipeline, Streamlit UI, and the RAG (Retrieval-Augmented
+# Generation) system powered by FAISS vector search.
+#
+# Feature: RAG Vector Database (FAISS)
+#   Enables semantic search over real estate documents such as
+#   market trends, property laws, and investment guides to
+#   ground AI advice in factual, retrieved context.
+# ============================================================
+
+
+# ------------------------------------------------------------
+# Core Data Science & ML
+# ------------------------------------------------------------
+pandas>=1.5.0
+numpy>=1.23.0
+scikit-learn>=1.2.0
+joblib>=1.2.0
+
+
+# ------------------------------------------------------------
+# Streamlit UI & Visualization
+# ------------------------------------------------------------
 streamlit>=1.23.0
 altair<5
-matplotlib
-seaborn
-langgraph
-faiss-cpu
-kagglehub
+matplotlib>=3.6.0
+seaborn>=0.12.0
+
+
+# ------------------------------------------------------------
+# Agentic Workflow
+# ------------------------------------------------------------
+langgraph>=0.1.0
+
+
+# ------------------------------------------------------------
+# Dataset Access
+# ------------------------------------------------------------
+kagglehub>=0.1.0
+
+
+# ------------------------------------------------------------
+# RAG - Vector Database (FAISS)
+# ------------------------------------------------------------
+# FAISS (Facebook AI Similarity Search) is the core vector
+# store used to index and retrieve document embeddings.
+# faiss-cpu is used for CPU-only environments (CI/CD safe).
+# Switch to faiss-gpu if running on a CUDA-enabled machine.
+faiss-cpu>=1.7.4
+
+
+# ------------------------------------------------------------
+# RAG - Embeddings & Semantic Search
+# ------------------------------------------------------------
+# sentence-transformers provides pre-trained models (e.g.,
+# all-MiniLM-L6-v2) to encode text chunks into dense vectors
+# for similarity search against the FAISS index.
+sentence-transformers>=2.2.2
+
+# PyTorch (CPU build) - required by sentence-transformers and
+# HuggingFace transformers for embedding inference.
+torch>=2.0.0
+torchvision>=0.15.0
+
+# HuggingFace ecosystem for loading transformer-based models
+# and tokenizers used in embedding + generation steps.
+transformers>=4.35.0
+huggingface-hub>=0.20.0
+tokenizers>=0.15.0
+
+# tiktoken - fast BPE tokenizer used for token-counting when
+# chunking documents before embedding (OpenAI-compatible).
+tiktoken>=0.5.0
+
+
+# ------------------------------------------------------------
+# RAG - LangChain Orchestration
+# ------------------------------------------------------------
+# LangChain provides the RAG pipeline glue: document loaders,
+# text splitters, retriever interfaces, and chain abstractions
+# that connect FAISS retrieval to the LLM response step.
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-community>=0.0.20
+
+# LangChain integration for HuggingFace models/embeddings
+langchain-huggingface>=0.0.1
+
+
+# ------------------------------------------------------------
+# RAG - LLM Integration (Optional / Swappable)
+# ------------------------------------------------------------
+# The RAG pipeline can be backed by OpenAI's GPT models or
+# any HuggingFace-hosted model. Install both to keep the
+# project provider-agnostic and configurable via .env.
+openai>=1.10.0
+
+
+# ------------------------------------------------------------
+# RAG - Document Loaders & Parsers
+# ------------------------------------------------------------
+# pypdf  - load and parse PDF real estate reports/guides.
+# python-docx - load .docx investment documents.
+# unstructured - general-purpose loader for mixed file types
+#                (PDF, DOCX, TXT, HTML) with auto-detection.
+pypdf>=3.17.0
+python-docx>=1.0.0
+unstructured>=0.10.0
+
+
+# ------------------------------------------------------------
+# Utilities & Configuration
+# ------------------------------------------------------------
+# python-dotenv - load API keys and config from a .env file
+#                 (e.g., OPENAI_API_KEY, HF_TOKEN).
+python-dotenv>=1.0.0
+
+# tqdm - progress bars for indexing large document corpora
+#        into the FAISS vector store.
+tqdm>=4.65.0
+
+# pydantic - data validation for RAG config schemas and
+#            structured outputs from LLM chains.
+pydantic>=2.0.0
+
+# requests - HTTP client for fetching remote documents or
+#            calling external property data APIs.
+requests>=2.28.0
