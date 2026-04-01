@@ -21,8 +21,22 @@ Usage (future implementation):
 
 from __future__ import annotations
 
+import os
+import logging
 from pathlib import Path
 
+from dotenv import load_dotenv
+from langchain_community.document_loaders import DirectoryLoader, TextLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+
+load_dotenv()
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 # ------------------------------------------------------------
 # Constants
@@ -66,10 +80,34 @@ class RAGEngine:
 
     def build_index(self) -> None:
         """Load documents, chunk them, and build the FAISS vector index."""
-        raise NotImplementedError(
-            "build_index() will be implemented in Phase 2. "
-            "Add real estate PDFs to data/knowledge_base/ to get started."
+        if not self.docs_dir.exists():
+            logging.error(f"Knowledge base directory not found: {self.docs_dir}")
+            return
+            
+        logging.info(f"Loading documents from {self.docs_dir}...")
+        loader = DirectoryLoader(str(self.docs_dir), glob="**/*.txt", loader_cls=TextLoader)
+        documents = loader.load()
+        
+        if not documents:
+            logging.warning("No documents found to build the knowledge base.")
+            return
+
+        logging.info(f"Loaded {len(documents)} documents. Splitting into chunks...")
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=CHUNK_SIZE, 
+            chunk_overlap=CHUNK_OVERLAP
         )
+        splits = text_splitter.split_documents(documents)
+        
+        logging.info(f"Initializing HuggingFace Embeddings: {self.embedding_model}")
+        embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model)
+
+        logging.info("Building FAISS Vector Store...")
+        self._vector_store = FAISS.from_documents(documents=splits, embedding=embeddings)
+        
+        self.index_dir.mkdir(parents=True, exist_ok=True)
+        self._vector_store.save_local(str(self.index_dir))
+        logging.info(f"FAISS index successfully saved to {self.index_dir}")
 
     def query(self, question: str, top_k: int = TOP_K_RESULTS) -> str:
         """
@@ -82,9 +120,39 @@ class RAGEngine:
         Returns:
             LLM-generated answer grounded in retrieved context.
         """
-        raise NotImplementedError(
-            "query() will be implemented in Phase 2 alongside the FAISS index."
-        )
+        if self._vector_store is None:
+            if not self.index_dir.exists():
+                raise RuntimeError("FAISS index not found. Run build_index() first.")
+            
+            logging.info("Loading existing FAISS index...")
+            embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model)
+            self._vector_store = FAISS.load_local(
+                str(self.index_dir), 
+                embeddings, 
+                allow_dangerous_deserialization=True
+            )
+
+        retriever = self._vector_store.as_retriever(search_kwargs={"k": top_k})
+        
+        # Determine if OpenAI key is present and set up the LangChain QA chain
+        if not os.getenv("OPENAI_API_KEY"):
+            logging.warning("No OPENAI_API_KEY found. Returning raw context chunks instead of LLM answer.")
+            docs = retriever.invoke(question)
+            return "\n\n".join([d.page_content for d in docs])
+            
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
+        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are a real estate investment advisor. Answer the user's question based strictly on the provided context. If the answer is not in the context, say you don't know.\n\nContext: {context}"),
+            ("human", "{input}")
+        ])
+        
+        question_answer_chain = create_stuff_documents_chain(llm, prompt)
+        rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+        
+        logging.info(f"Querying LLM for: {question}")
+        response = rag_chain.invoke({"input": question})
+        return response["answer"]
 
     @property
     def is_ready(self) -> bool:
