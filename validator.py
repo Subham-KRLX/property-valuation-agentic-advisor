@@ -68,21 +68,21 @@ class PropertyInputValidator:
             if feat not in numeric_inputs:
                 continue
             val = numeric_inputs[feat]
-            if val and not (lo <= val <= hi):
+            if val is not None and not (lo <= val <= hi):
                 result.add_warning(f"{feat.capitalize()} ({inputs.get(feat)}) is unusual for this dataset")
 
-        # Cross-field logic
-        area = numeric_inputs.get("area", 0)
-        beds = numeric_inputs.get("bedrooms", 1)
-        baths = numeric_inputs.get("bathrooms", 1)
-        stories = numeric_inputs.get("stories", 1)
+        # Cross-field logic only runs when core inputs are present and within hard bounds.
+        cross_fields = ("area", "bedrooms", "bathrooms", "stories")
+        all_valid = all(
+            feat in numeric_inputs and HARD_BOUNDS[feat][0] <= numeric_inputs[feat] <= HARD_BOUNDS[feat][1]
+            for feat in cross_fields
         )
 
         if all_valid:
-            area = inputs["area"]
-            beds = inputs["bedrooms"]
-            baths = inputs["bathrooms"]
-            stories = inputs["stories"]
+            area = numeric_inputs["area"]
+            beds = numeric_inputs["bedrooms"]
+            baths = numeric_inputs["bathrooms"]
+            stories = numeric_inputs["stories"]
 
             sqft_per_bed = area / beds
             if sqft_per_bed < 200:

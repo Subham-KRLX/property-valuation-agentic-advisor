@@ -3,10 +3,12 @@ import pandas as pd
 import numpy as np
 import joblib
 import json
+from datetime import datetime
 from pathlib import Path
 from validator import PropertyInputValidator
 
 from agent import PropertyAdvisorAgent
+from pdf_report import build_property_report
 
 @st.cache_resource
 def load_advisor_agent():
@@ -34,6 +36,16 @@ class ValuationApp:
             return joblib.load(MODEL_PATH)
         except Exception as e:
             st.error(f"Failed to load model: {e}")
+            return None
+
+    def _load_metadata(self):
+        if not METADATA_PATH.exists():
+            return None
+
+        try:
+            with open(METADATA_PATH, "r") as file:
+                return json.load(file)
+        except Exception:
             return None
 
     def render_header(self):
@@ -126,53 +138,92 @@ class ValuationApp:
         # Run prediction
         try:
             prediction = self.model.predict(input_df)[0]
+        except Exception as e:
+            st.error(f"❌ Prediction failed: {e}")
+            return
 
-            st.markdown("---")
-            st.success(f"### 💰 Estimated Property Value: ₹{prediction:,.0f}")
+        st.markdown("---")
+        st.success(f"### 💰 Estimated Property Value: ₹{prediction:,.0f}")
 
-            st.info("**Property Summary:**")
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                st.metric("Area", f"{area:,} sq ft")
-                st.metric("Bedrooms", bedrooms)
-            with col_b:
-                st.metric("Bathrooms", bathrooms)
-                st.metric("Stories", stories)
-            with col_c:
-                st.metric("Parking", parking)
-                amenities = sum(
-                    1 for val in [mainroad, guestroom, basement, hotwaterheating, airconditioning]
-                    if val == "Yes"
-                )
-                st.metric("Amenities", f"{amenities}/5")
+        st.info("**Property Summary:**")
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            st.metric("Area", f"{area:,} sq ft")
+            st.metric("Bedrooms", bedrooms)
+        with col_b:
+            st.metric("Bathrooms", bathrooms)
+            st.metric("Stories", stories)
+        with col_c:
+            st.metric("Parking", parking)
+            amenities = sum(
+                1 for val in [mainroad, guestroom, basement, hotwaterheating, airconditioning]
+                if val == "Yes"
+            )
+            st.metric("Amenities", f"{amenities}/5")
 
-            st.balloons()
-            
-            # --- Agentic Advisory Layer ---
-            st.markdown("---")
-            st.subheader("🤖 AI Investment Advisor")
-            agent_input = {
-                "area": area,
-                "bedrooms": bedrooms,
-                "bathrooms": bathrooms,
-                "stories": stories,
-                "mainroad": mainroad,
-                "guestroom": guestroom,
-                "basement": basement,
-                "hotwaterheating": hotwaterheating,
-                "airconditioning": airconditioning,
-                "parking": parking
-            }
-            
+        st.balloons()
+
+        # --- Agentic Advisory Layer ---
+        st.markdown("---")
+        st.subheader("🤖 AI Investment Advisor")
+        agent_input = {
+            "area": area,
+            "bedrooms": bedrooms,
+            "bathrooms": bathrooms,
+            "stories": stories,
+            "mainroad": mainroad,
+            "guestroom": guestroom,
+            "basement": basement,
+            "hotwaterheating": hotwaterheating,
+            "airconditioning": airconditioning,
+            "parking": parking,
+        }
+
+        advice = "Advisory summary was unavailable at the time of export."
+        try:
             advisor = load_advisor_agent()
             with st.spinner("Analyzing market trends and regulations..."):
                 advice = advisor.run(agent_input, prediction)
-                
+
             st.success("**Investment Summary & Recommendation**")
             st.write(advice)
-            
         except Exception as e:
-            st.error(f"❌ Prediction or Advisory failed: {e}")
+            advice = f"Advisory unavailable: {e}"
+            st.warning("The valuation was generated, but the AI advisory could not be completed.")
+            st.caption(str(e))
+
+        st.markdown("---")
+        st.subheader("📄 Export Report")
+        metadata = self._load_metadata()
+        report_details = {
+            "area": area,
+            "bedrooms": bedrooms,
+            "bathrooms": bathrooms,
+            "stories": stories,
+            "parking": parking,
+            "mainroad": mainroad,
+            "guestroom": guestroom,
+            "basement": basement,
+            "hotwaterheating": hotwaterheating,
+            "airconditioning": airconditioning,
+            "amenities": f"{amenities}/5",
+        }
+        report_bytes = build_property_report(
+            property_details=report_details,
+            estimated_price=prediction,
+            advisory_text=advice,
+            validation_warnings=validation.warnings,
+            metadata=metadata,
+        )
+        file_name = f"valuation-report-{datetime.now().strftime('%Y%m%d-%H%M%S')}.pdf"
+        st.caption("Download a polished PDF summary of the valuation, advisory, and key model metrics.")
+        st.download_button(
+            label="Download PDF Report",
+            data=report_bytes,
+            file_name=file_name,
+            mime="application/pdf",
+            use_container_width=True,
+        )
 
 def main():
     st.set_page_config(page_title=PAGE_TITLE, page_icon=PAGE_ICON)
@@ -187,9 +238,8 @@ def main():
         
     with tab2:
         st.header("Model Performance & Insights")
-        if METADATA_PATH.exists():
-            with open(METADATA_PATH, 'r') as f:
-                metadata = json.load(f)
+        metadata = app._load_metadata()
+        if metadata:
             
             # Metrics
             m1, m2, m3 = st.columns(3)
