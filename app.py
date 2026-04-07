@@ -4,6 +4,7 @@ import numpy as np
 import joblib
 import json
 from pathlib import Path
+from validator import PropertyInputValidator
 
 PAGE_TITLE = "Intelligent Property Valuation"
 PAGE_ICON = "🏠"
@@ -66,33 +67,67 @@ class ValuationApp:
 
     def _predict_price(self, area, bedrooms, bathrooms, stories, parking,
                       mainroad, guestroom, basement, hotwaterheating, airconditioning):
-        
-        input_data = {
-            "area": area,
-            "bedrooms": bedrooms,
+
+        # ── Step 1: Build the raw input dict (numeric values only for validation) ──
+        raw_inputs = {
+            "area":      area,
+            "bedrooms":  bedrooms,
             "bathrooms": bathrooms,
-            "stories": stories,
-            "mainroad": 1 if mainroad == "Yes" else 0,
-            "guestroom": 1 if guestroom == "Yes" else 0,
-            "basement": 1 if basement == "Yes" else 0,
-            "hotwaterheating": 1 if hotwaterheating == "Yes" else 0,
-            "airconditioning": 1 if airconditioning == "Yes" else 0,
-            "parking": parking
+            "stories":   stories,
+            "parking":   parking,
+        }
+
+        # ── Step 2: Validate inputs ──────────────────────────────────────────
+        validator = PropertyInputValidator()
+        validation = validator.validate(raw_inputs)
+
+        # Always show warnings (they do not block prediction)
+        if validation.has_warnings:
+            st.markdown("---")
+            st.markdown("#### ⚠️ Input Warnings")
+            for warn in validation.warnings:
+                st.warning(warn)
+
+        # Show errors and abort if any hard/cross-field rule is violated
+        if not validation.is_valid:
+            st.markdown("---")
+            st.markdown("#### ❌ Validation Errors — Prediction Blocked")
+            for err in validation.errors:
+                st.error(err)
+            st.info(
+                "Please correct the highlighted fields and try again. "
+                "Valid inputs ensure reliable price estimates."
+            )
+            return
+
+        # ── Step 3: Encode binary features and build model input ─────────────
+        input_data = {
+            "area":             area,
+            "bedrooms":         bedrooms,
+            "bathrooms":        bathrooms,
+            "stories":          stories,
+            "mainroad":         1 if mainroad == "Yes" else 0,
+            "guestroom":        1 if guestroom == "Yes" else 0,
+            "basement":         1 if basement == "Yes" else 0,
+            "hotwaterheating":  1 if hotwaterheating == "Yes" else 0,
+            "airconditioning":  1 if airconditioning == "Yes" else 0,
+            "parking":          parking,
         }
 
         features = [
-            "area", "bedrooms", "bathrooms", "stories", "mainroad", 
+            "area", "bedrooms", "bathrooms", "stories", "mainroad",
             "guestroom", "basement", "hotwaterheating", "airconditioning", "parking"
         ]
-        
+
         input_df = pd.DataFrame([input_data], columns=features)
-        
+
+        # ── Step 4: Run prediction ────────────────────────────────────────────
         try:
             prediction = self.model.predict(input_df)[0]
-            
+
             st.markdown("---")
             st.success(f"### 💰 Estimated Property Value: ₹{prediction:,.0f}")
-            
+
             st.info("**Property Summary:**")
             col_a, col_b, col_c = st.columns(3)
             with col_a:
@@ -103,8 +138,12 @@ class ValuationApp:
                 st.metric("Stories", stories)
             with col_c:
                 st.metric("Parking", parking)
-                st.metric("Amenities", f"{sum([1 for val in [mainroad, guestroom, basement, hotwaterheating, airconditioning] if val == 'Yes'])}/5")
-            
+                amenities = sum(
+                    1 for val in [mainroad, guestroom, basement, hotwaterheating, airconditioning]
+                    if val == "Yes"
+                )
+                st.metric("Amenities", f"{amenities}/5")
+
             st.balloons()
         except Exception as e:
             st.error(f"❌ Prediction failed: {e}")
