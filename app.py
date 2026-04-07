@@ -81,7 +81,7 @@ class ValuationApp:
         validator = PropertyInputValidator()
         validation = validator.validate(raw_inputs)
 
-        if validation.has_warnings:
+        if validation.warnings:
             st.markdown("---")
             st.markdown("#### ⚠️ Input Warnings")
             for warn in validation.warnings:

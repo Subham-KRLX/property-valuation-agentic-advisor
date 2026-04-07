@@ -47,16 +47,22 @@ class PropertyInputValidator:
         # Check soft bounds
         for feat, (lo, hi) in SOFT_BOUNDS.items():
             val = inputs.get(feat)
-            if val and not (lo <= val <= hi):
+            if val is not None and not (lo <= val <= hi):
                 result.add_warning(f"{feat.capitalize()} ({val}) is unusual for this dataset")
 
-        # Cross-field logic
-        area = inputs.get("area", 0)
-        beds = inputs.get("bedrooms", 1)
-        baths = inputs.get("bathrooms", 1)
-        stories = inputs.get("stories", 1)
+        # Cross-field logic — only run when all required fields are present and within hard bounds
+        cross_fields = ("area", "bedrooms", "bathrooms", "stories")
+        all_valid = all(
+            (v := inputs.get(f)) is not None and HARD_BOUNDS[f][0] <= v <= HARD_BOUNDS[f][1]
+            for f in cross_fields
+        )
 
-        if beds > 0:
+        if all_valid:
+            area = inputs["area"]
+            beds = inputs["bedrooms"]
+            baths = inputs["bathrooms"]
+            stories = inputs["stories"]
+
             sqft_per_bed = area / beds
             if sqft_per_bed < 200:
                 result.add_error(f"Area per bedroom ({sqft_per_bed:.0f}) is too low")
@@ -68,10 +74,10 @@ class PropertyInputValidator:
             elif baths > beds:
                 result.add_warning("More bathrooms than bedrooms")
 
-        if stories >= 3 and area < 1500:
-            result.add_warning("Multiple stories with small area - please verify")
+            if stories >= 3 and area < 1500:
+                result.add_warning("Multiple stories with small area - please verify")
 
-        if beds >= 5 and area < 2000:
-            result.add_error("Too many bedrooms for this area")
+            if beds >= 5 and area < 2000:
+                result.add_error("Too many bedrooms for this area")
 
         return result
