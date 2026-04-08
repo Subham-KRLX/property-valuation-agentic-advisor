@@ -74,7 +74,7 @@ huggingface-hub>=0.20.0
 tokenizers>=0.15.0
 
 # tiktoken - fast BPE tokenizer used for token-counting when
-# chunking documents before embedding (OpenAI-compatible).
+# chunking documents before embedding.
 tiktoken>=0.5.0
 
 
@@ -95,10 +95,9 @@ langchain-huggingface>=0.0.1
 # ------------------------------------------------------------
 # RAG - LLM Integration (Optional / Swappable)
 # ------------------------------------------------------------
-# The RAG pipeline can be backed by OpenAI's GPT models or
-# any HuggingFace-hosted model. Install both to keep the
-# project provider-agnostic and configurable via .env.
-openai>=1.10.0
+# Groq powers the advisory and grounded answer generation
+# paths for low-latency inference in the app.
+langchain-groq>=0.2.0
 
 
 # ------------------------------------------------------------
@@ -117,7 +116,7 @@ unstructured>=0.10.0
 # Utilities & Configuration
 # ------------------------------------------------------------
 # python-dotenv - load API keys and config from a .env file
-#                 (e.g., OPENAI_API_KEY, HF_TOKEN).
+#                 (e.g., GROQ_API_KEY, HF_TOKEN).
 python-dotenv>=1.0.0
 
 # tqdm - progress bars for indexing large document corpora

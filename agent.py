@@ -1,12 +1,12 @@
 from typing import Dict, Any, TypedDict
 import logging
-import os
 from dotenv import load_dotenv
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, END
 
+from llm_config import get_groq_model, has_groq_api_key
 from rag_engine import RAGEngine
 
 load_dotenv()
@@ -30,12 +30,12 @@ class PropertyAdvisorAgent:
         except Exception as e:
             logging.warning(f"Could not initialize RAG index: {e}")
             
-        # We initialize our brain (LLM) if OPENAI_API_KEY is available.
-        if os.getenv("OPENAI_API_KEY"):
-            self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+        # Use Groq as the primary LLM provider when the API key is available.
+        if has_groq_api_key():
+            self.llm = ChatGroq(model=get_groq_model(), temperature=0.2)
         else:
             self.llm = None
-            logging.warning("No OPENAI_API_KEY set. The agent will run in Mock Mode.")
+            logging.warning("No GROQ_API_KEY set. The agent will run in fallback mode.")
 
         self.graph = self._build_graph()
 
@@ -72,7 +72,7 @@ class PropertyAdvisorAgent:
         logging.info(f"RAG Query: {search_query}")
         
         try:
-            # We call the RAGEngine. If OpenAI is not configured, it returns raw strings in the engine itself.
+            # If Groq is not configured, the RAG engine returns raw retrieved context.
             context = self.rag_engine.query(search_query, top_k=2)
         except Exception as e:
             logging.warning(f"RAG retrieval failed: {e}")
@@ -83,13 +83,13 @@ class PropertyAdvisorAgent:
     def _generate_investment_advice(self, state: AdvisorState) -> Dict:
         """Generates the final advice reasoning over the RAG context and ML prediction."""
         if not self.llm:
-            mock_advice = (
-                f"**[MOCK ADVICE - NO API KEY]**\n"
+            fallback_advice = (
+                f"**[FALLBACK ADVICE - NO GROQ KEY]**\n"
                 f"Based on the ML prediction of ₹{state['predicted_price']:,.0f}, this property is solid. "
                 f"We also retrieved the following context from our knowledge base:\n"
                 f"...\n{state['rag_context']}\n..."
             )
-            return {"final_advice": mock_advice}
+            return {"final_advice": fallback_advice}
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a senior real estate investment advisor.

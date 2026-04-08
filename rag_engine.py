@@ -21,7 +21,6 @@ Usage (future implementation):
 
 from __future__ import annotations
 
-import os
 import logging
 from pathlib import Path
 
@@ -30,10 +29,12 @@ from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
+
+from llm_config import get_groq_model, has_groq_api_key
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -111,14 +112,17 @@ class RAGEngine:
 
     def query(self, question: str, top_k: int = TOP_K_RESULTS) -> str:
         """
-        Retrieve relevant document chunks and generate a grounded answer.
+        Retrieve relevant document chunks and return either a grounded answer
+        from Groq or the raw retrieved context when Groq is unavailable.
 
         Args:
             question: Natural language question about real estate.
             top_k: Number of top relevant chunks to retrieve.
 
         Returns:
-            LLM-generated answer grounded in retrieved context.
+            A Groq-generated answer grounded in retrieved context, or a
+            newline-joined string of the top retrieved document chunks when
+            GROQ_API_KEY is not configured.
         """
         if self._vector_store is None:
             if not self.index_dir.exists():
@@ -134,13 +138,13 @@ class RAGEngine:
 
         retriever = self._vector_store.as_retriever(search_kwargs={"k": top_k})
         
-        # Determine if OpenAI key is present and set up the LangChain QA chain
-        if not os.getenv("OPENAI_API_KEY"):
-            logging.warning("No OPENAI_API_KEY found. Returning raw context chunks instead of LLM answer.")
+        # When Groq is unavailable, return raw retrieved context instead of a generated answer.
+        if not has_groq_api_key():
+            logging.warning("No GROQ_API_KEY found. Returning raw context chunks instead of LLM answer.")
             docs = retriever.invoke(question)
             return "\n\n".join([d.page_content for d in docs])
             
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
+        llm = ChatGroq(model=get_groq_model(), temperature=0.0)
         
         prompt = ChatPromptTemplate.from_messages([
             ("system", "You are a real estate investment advisor. Answer the user's question based strictly on the provided context. If the answer is not in the context, say you don't know.\n\nContext: {context}"),
