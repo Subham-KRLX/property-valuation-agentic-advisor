@@ -83,13 +83,13 @@ class PropertyAdvisorAgent:
     def _generate_investment_advice(self, state: AdvisorState) -> Dict:
         """Generates the final advice reasoning over the RAG context and ML prediction."""
         if not self.llm:
-            mock_advice = (
+            fallback_advice = (
                 f"**[FALLBACK ADVICE - NO GROQ KEY]**\n"
                 f"Based on the ML prediction of ₹{state['predicted_price']:,.0f}, this property is solid. "
                 f"We also retrieved the following context from our knowledge base:\n"
                 f"...\n{state['rag_context']}\n..."
             )
-            return {"final_advice": mock_advice}
+            return {"final_advice": fallback_advice}
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a senior real estate investment advisor.

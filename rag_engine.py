@@ -112,14 +112,17 @@ class RAGEngine:
 
     def query(self, question: str, top_k: int = TOP_K_RESULTS) -> str:
         """
-        Retrieve relevant document chunks and generate a grounded answer.
+        Retrieve relevant document chunks and return either a grounded answer
+        from Groq or the raw retrieved context when Groq is unavailable.
 
         Args:
             question: Natural language question about real estate.
             top_k: Number of top relevant chunks to retrieve.
 
         Returns:
-            LLM-generated answer grounded in retrieved context.
+            A Groq-generated answer grounded in retrieved context, or a
+            newline-joined string of the top retrieved document chunks when
+            GROQ_API_KEY is not configured.
         """
         if self._vector_store is None:
             if not self.index_dir.exists():
