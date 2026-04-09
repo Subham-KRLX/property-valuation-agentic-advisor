@@ -22,9 +22,13 @@ wheels/
 *.egg
 
 # Data & Models
-data/
+data/*
+!data/knowledge_base/
+data/knowledge_base/*
+!data/knowledge_base/*.txt
 # models/  <-- We ARE committing the model for deployment simplicity
 !models/house_model.pkl
+models/faiss_index/
 
 # Environment
 .env
@@ -35,3 +39,6 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test artifacts
+.pytest_cache/

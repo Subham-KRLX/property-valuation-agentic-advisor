@@ -13,7 +13,7 @@ Architecture:
     4. FAISS Indexing    - Store and retrieve vectors via similarity search
     5. RAG Chain         - Combine retrieved context with LLM for grounded answers
 
-Usage (future implementation):
+Usage:
     engine = RAGEngine(docs_dir="data/knowledge_base/")
     engine.build_index()
     answer = engine.query("What are the current trends in Bangalore property market?")
@@ -61,8 +61,8 @@ class RAGEngine:
         embedding_model (str): HuggingFace model name for text embeddings.
 
     Note:
-        Full implementation (document loading, chunking, indexing, and
-        retrieval logic) will be added in the next phase of development.
+        The engine persists a local FAISS index so retrieval can be reused
+        across app restarts without rebuilding embeddings every time.
     """
 
     def __init__(
@@ -77,23 +77,52 @@ class RAGEngine:
         self.trusted = True  # Default to True for local dev; gate in production
         self._vector_store = None
 
-    # ----------------------------------------------------------
-    # Phase 2: Full implementation coming in next PR
-    # ----------------------------------------------------------
+    def _index_exists(self) -> bool:
+        return self.index_dir.exists() and any(self.index_dir.iterdir())
 
-    def build_index(self) -> None:
-        """Load documents, chunk them, and build the FAISS vector index."""
+    def _get_embeddings(self) -> HuggingFaceEmbeddings:
+        return HuggingFaceEmbeddings(model_name=self.embedding_model)
+
+    def _load_vector_store(self):
+        if self._vector_store is not None:
+            return self._vector_store
+
+        if not self._index_exists():
+            return None
+
+        try:
+            logging.info(f"Loading existing FAISS index from {self.index_dir}...")
+            self._vector_store = FAISS.load_local(
+                str(self.index_dir),
+                self._get_embeddings(),
+                allow_dangerous_deserialization=self.trusted,
+            )
+            return self._vector_store
+        except Exception as e:
+            logging.warning(f"Failed to load existing FAISS index: {e}")
+            self._vector_store = None
+            return None
+
+    def _load_documents(self):
         if not self.docs_dir.exists():
-            logging.error(f"Knowledge base directory not found: {self.docs_dir}")
-            return
-            
+            logging.warning(f"Knowledge base directory not found: {self.docs_dir}")
+            return []
+
         logging.info(f"Loading documents from {self.docs_dir}...")
         loader = DirectoryLoader(str(self.docs_dir), glob="**/*.txt", loader_cls=TextLoader)
-        documents = loader.load()
+        return loader.load()
+
+    def build_index(self, force: bool = False) -> bool:
+        """Load documents, chunk them, and build the FAISS vector index."""
+        if not force and self._load_vector_store() is not None:
+            logging.info("Reusing persisted FAISS index.")
+            return True
+
+        documents = self._load_documents()
         
         if not documents:
             logging.warning("No documents found to build the knowledge base.")
-            return
+            return False
 
         logging.info(f"Loaded {len(documents)} documents. Splitting into chunks...")
         text_splitter = RecursiveCharacterTextSplitter(
@@ -103,7 +132,7 @@ class RAGEngine:
         splits = text_splitter.split_documents(documents)
         
         logging.info(f"Initializing HuggingFace Embeddings: {self.embedding_model}")
-        embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model)
+        embeddings = self._get_embeddings()
 
         logging.info("Building FAISS Vector Store...")
         self._vector_store = FAISS.from_documents(documents=splits, embedding=embeddings)
@@ -111,6 +140,7 @@ class RAGEngine:
         self.index_dir.mkdir(parents=True, exist_ok=True)
         self._vector_store.save_local(str(self.index_dir))
         logging.info(f"FAISS index successfully saved to {self.index_dir}")
+        return True
 
     def query(self, question: str, top_k: int = TOP_K_RESULTS) -> str:
         """
@@ -126,17 +156,9 @@ class RAGEngine:
             newline-joined string of the top retrieved document chunks when
             GROQ_API_KEY is not configured.
         """
-        if self._vector_store is None:
-            if not self.index_dir.exists():
-                raise RuntimeError("FAISS index not found. Run build_index() first.")
-            
-            logging.info("Loading existing FAISS index...")
-            embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model)
-            self._vector_store = FAISS.load_local(
-                str(self.index_dir), 
-                embeddings, 
-                allow_dangerous_deserialization=self.trusted
-            )
+        if self._load_vector_store() is None and not self.build_index():
+            logging.warning("Knowledge base unavailable. Returning fallback context.")
+            return "Knowledge base is currently unavailable."
 
         retriever = self._vector_store.as_retriever(search_kwargs={"k": top_k})
         
@@ -172,17 +194,9 @@ class RAGEngine:
         Returns:
             List of comparable property transactions with details extracted.
         """
-        if self._vector_store is None:
-            if not self.index_dir.exists():
-                raise RuntimeError("FAISS index not found. Run build_index() first.")
-            
-            logging.info("Loading existing FAISS index for comps retrieval...")
-            embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model)
-            self._vector_store = FAISS.load_local(
-                str(self.index_dir), 
-                embeddings, 
-                allow_dangerous_deserialization=self.trusted
-            )
+        if self._load_vector_store() is None and not self.build_index():
+            logging.warning("Knowledge base unavailable. Returning no comparable sales.")
+            return []
         
         # Build a natural language query from property details
         query_parts = []
@@ -260,5 +274,5 @@ class RAGEngine:
 
     @property
     def is_ready(self) -> bool:
-        """Returns True if a FAISS index has been built and loaded."""
-        return self._vector_store is not None
+        """Returns True if a FAISS index is available in memory or on disk."""
+        return self._vector_store is not None or self._index_exists()

@@ -1,0 +1,45 @@
+Recent Comparable Property Sales (2025-2026)
+
+Comparable Property 1
+Location: Whitefield, Bangalore
+Date: January 2026
+Area: 4200
+Bedrooms: 3
+Bathrooms: 3
+Sale Price: 8,200,000
+Basement: Yes
+Air Conditioning: Yes
+Main Road Access: No
+
+Comparable Property 2
+Location: Electronic City, Bangalore
+Date: December 2025
+Area: 3900
+Bedrooms: 3
+Bathrooms: 2
+Sale Price: 7,650,000
+Basement: No
+Air Conditioning: Yes
+Main Road Access: Yes
+
+Comparable Property 3
+Location: Sarjapur Road, Bangalore
+Date: February 2026
+Area: 5100
+Bedrooms: 4
+Bathrooms: 3
+Sale Price: 9,450,000
+Basement: Yes
+Air Conditioning: Yes
+Main Road Access: No
+
+Comparable Property 4
+Location: Yelahanka, Bangalore
+Date: November 2025
+Area: 3600
+Bedrooms: 3
+Bathrooms: 2
+Sale Price: 7,100,000
+Basement: No
+Air Conditioning: No
+Main Road Access: Yes

@@ -72,8 +72,9 @@ If `GROQ_API_KEY` is not set, the app still runs. The valuation flow remains ava
 - `rag_engine.py`: FAISS-backed retrieval layer for market context.
 - `llm_config.py`: Shared Groq provider configuration helpers.
 - `models/`: Contains the serialized `house_model.pkl`.
+- `models/faiss_index/`: Built locally on first successful RAG indexing run and kept out of Git.
 - `assets/`: Contains `model_metadata.json` and static assets.
-- `data/`: Local storage for the dataset (excluded from Git).
+- `data/knowledge_base/`: Tracked starter market and comparable-sales documents used to build the local FAISS index.
 
 ## 👥 Team
 - **Nss Gourav**
