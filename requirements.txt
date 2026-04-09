@@ -95,6 +95,12 @@ langchain-huggingface>=0.0.1
 # ------------------------------------------------------------
 # RAG - LLM Integration (Optional / Swappable)
 # ------------------------------------------------------------
+# The RAG pipeline can be backed by OpenAI's GPT models or
+# any HuggingFace-hosted model. Install both to keep the
+# project provider-agnostic and configurable via .env.
+openai>=1.10.0
+langchain-openai>=0.1.0
+
 # Groq powers the advisory and grounded answer generation
 # paths for low-latency inference in the app.
 langchain-groq>=0.2.0

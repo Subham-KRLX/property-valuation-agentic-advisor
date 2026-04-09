@@ -180,13 +180,27 @@ class ValuationApp:
         }
 
         advice = "Advisory summary was unavailable at the time of export."
+        comps = []
         try:
             advisor = load_advisor_agent()
             with st.spinner("Analyzing market trends and regulations..."):
-                advice = advisor.run(agent_input, prediction)
+                advice, comps = advisor.run(agent_input, prediction)
 
             st.success("**Investment Summary & Recommendation**")
             st.write(advice)
+            
+            # Display comps if available
+            if comps:
+                st.markdown("---")
+                st.subheader("📍 Comparable Properties (Comps)")
+                comp_cols = st.columns(len(comps[:3]))
+                for idx, comp in enumerate(comps[:3]):
+                    with comp_cols[idx]:
+                        st.info(
+                            f"**{comp.get('location') or 'N/A'}**\n\n"
+                            f"₹{comp.get('price') or 'N/A'}\n"
+                            f"({comp.get('date') or 'N/A'})"
+                        )
         except Exception as e:
             advice = f"Advisory unavailable: {e}"
             st.warning("The valuation was generated, but the AI advisory could not be completed.")
@@ -214,6 +228,7 @@ class ValuationApp:
             advisory_text=advice,
             validation_warnings=validation.warnings,
             metadata=metadata,
+            comps=comps,
         )
         file_name = f"valuation-report-{datetime.now().strftime('%Y%m%d-%H%M%S')}.pdf"
         st.caption("Download a polished PDF summary of the valuation, advisory, and key model metrics.")

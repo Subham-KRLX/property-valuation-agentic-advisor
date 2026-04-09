@@ -42,6 +42,7 @@ def build_property_report(
     advisory_text: str,
     validation_warnings: list[str] | None = None,
     metadata: dict | None = None,
+    comps: list[dict] | None = None,
 ) -> bytes:
     buffer = BytesIO()
     document = SimpleDocTemplate(
@@ -145,6 +146,38 @@ def build_property_report(
         for warning in validation_warnings:
             story.append(Paragraph(f"- {escape(warning)}", body_style))
         story.append(Spacer(1, 4))
+
+    if comps and len(comps) > 0:
+        story.append(Paragraph("Comparable Properties (Comps)", section_style))
+        comps_rows = [["Location", "Price", "Date", "Area", "Beds/Baths"]]
+        for comp in comps[:3]:
+            location = escape(str(comp.get("location") or "N/A"))
+            price = escape(str(comp.get("price") or "N/A"))
+            date = escape(str(comp.get("date") or "N/A"))
+            area = str(comp.get("area") or "N/A")
+            beds = str(comp.get("bedrooms") or "N/A")
+            baths = str(comp.get("bathrooms") or "N/A")
+            comps_rows.append([location, price, date, f"{area} sq ft", f"{beds}/{baths}"])
+        
+        comps_table = Table(comps_rows, colWidths=[35 * mm, 30 * mm, 25 * mm, 30 * mm, 20 * mm], hAlign="LEFT")
+        comps_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#FEF3C7")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#78350F")),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, 0), 9),
+                    ("BACKGROUND", (0, 1), (-1, -1), colors.white),
+                    ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 1), (-1, -1), 8),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#FCD34D")),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#FFFBEB")]),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        story.extend([comps_table, Spacer(1, 10)])
 
     if metadata and metadata.get("metrics"):
         story.append(Paragraph("Model Performance Snapshot", section_style))
