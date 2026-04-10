@@ -101,4 +101,10 @@ class PropertyInputValidator:
             if beds >= 5 and area < 2000:
                 result.add_error("Too many bedrooms for this area")
 
+            if area < 600 and beds > 2:
+                result.add_error("Area < 600 sq ft allows at most 2 bedrooms")
+
+            if baths > beds + 2:
+                result.add_error(f"Cannot have more than {beds + 2} bathrooms for {beds} bedrooms")
+
         return result
