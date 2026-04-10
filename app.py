@@ -100,18 +100,22 @@ class ValuationApp:
         validation = validator.validate(raw_inputs)
 
         if validation.warnings:
-            st.markdown("---")
-            st.markdown("#### ⚠️ Input Warnings")
-            for warn in validation.warnings:
-                st.warning(warn)
+            st.divider()
+            warning_box = st.container(border=True)
+            with warning_box:
+                st.markdown("#### ⚠️ Input Warnings")
+                for warn in validation.warnings:
+                    st.warning(warn, icon="⚠️")
 
         # Block prediction on errors
         if not validation.is_valid:
-            st.markdown("---")
-            st.markdown("#### ❌ Validation Errors")
-            for err in validation.errors:
-                st.error(err)
-            st.info("Please correct the details and try again.")
+            st.divider()
+            error_box = st.container(border=True)
+            with error_box:
+                st.markdown("#### ❌ Validation Errors")
+                for err in validation.errors:
+                    st.error(err, icon="🚨")
+                st.info("Please correct the details and try again.")
             return
 
         # Build feature dataframe
@@ -142,29 +146,33 @@ class ValuationApp:
             st.error(f"❌ Prediction failed: {e}")
             return
 
-        st.markdown("---")
-        st.success(f"### 💰 Estimated Property Value: ₹{prediction:,.0f}")
-
-        st.info("**Property Summary:**")
-        col_a, col_b, col_c = st.columns(3)
-        with col_a:
-            st.metric("Area", f"{area:,} sq ft")
-            st.metric("Bedrooms", bedrooms)
-        with col_b:
-            st.metric("Bathrooms", bathrooms)
-            st.metric("Stories", stories)
-        with col_c:
-            st.metric("Parking", parking)
-            amenities = sum(
-                1 for val in [mainroad, guestroom, basement, hotwaterheating, airconditioning]
-                if val == "Yes"
-            )
-            st.metric("Amenities", f"{amenities}/5")
+        st.divider()
+        
+        result_card = st.container(border=True)
+        with result_card:
+            st.success(f"## 💰 Estimated Value: ₹{prediction:,.0f}")
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            st.markdown("##### Property Overview")
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                st.metric("Area", f"{area:,} sq ft")
+                st.metric("Bedrooms", bedrooms)
+            with col_b:
+                st.metric("Bathrooms", bathrooms)
+                st.metric("Stories", stories)
+            with col_c:
+                st.metric("Parking", parking)
+                amenities = sum(
+                    1 for val in [mainroad, guestroom, basement, hotwaterheating, airconditioning]
+                    if val == "Yes"
+                )
+                st.metric("Amenities", f"{amenities}/5")
 
         st.balloons()
 
         # --- Agentic Advisory Layer ---
-        st.markdown("---")
+        st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("🤖 AI Investment Advisor")
         agent_input = {
             "area": area,
@@ -185,26 +193,28 @@ class ValuationApp:
             advisor = load_advisor_agent()
             with st.spinner("Analyzing market trends and regulations..."):
                 advice, comps = advisor.run(agent_input, prediction)
-
-            st.success("**Investment Summary & Recommendation**")
-            st.write(advice)
+            
+            advice_card = st.container(border=True)
+            with advice_card:
+                st.markdown("#### Investment Summary & Recommendation")
+                st.write(advice)
             
             # Display comps if available
             if comps:
-                st.markdown("---")
-                st.subheader("📍 Comparable Properties (Comps)")
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.subheader("📍 Comparable Context")
                 comp_cols = st.columns(len(comps[:3]))
                 for idx, comp in enumerate(comps[:3]):
                     with comp_cols[idx]:
-                        st.info(
-                            f"**{comp.get('location') or 'N/A'}**\n\n"
-                            f"₹{comp.get('price') or 'N/A'}\n"
-                            f"({comp.get('date') or 'N/A'})"
-                        )
+                        with st.container(border=True):
+                            st.markdown(f"**{comp.get('location') or 'N/A'}**")
+                            st.markdown(f"💰 ₹{comp.get('price') or 'N/A'}")
+                            st.markdown(f"📅 {comp.get('date') or 'N/A'}")
         except Exception as e:
             advice = f"Advisory unavailable: {e}"
-            st.warning("The valuation was generated, but the AI advisory could not be completed.")
-            st.caption(str(e))
+            st.info("The valuation was generated successfully, but the AI advisory could not be completed at this time (API unavailable).")
+            with st.expander("View Error Details"):
+                st.caption(str(e))
 
         st.markdown("---")
         st.subheader("📄 Property Investment Brief")
