@@ -57,6 +57,7 @@ The system was trained on the [Kaggle Housing Prices Dataset](https://www.kaggle
    ```bash
    python3 train_model.py
    ```
+   This refreshes `models/house_model.pkl` and writes structured training metadata to `assets/model_metadata.json`.
 
 5. **Run the Application**
    ```bash
@@ -67,13 +68,13 @@ If `GROQ_API_KEY` is not set, the app still runs. The valuation flow remains ava
 
 ## 📂 Project Structure
 - `app.py`: Streamlit frontend and application logic.
-- `train_model.py`: Data preprocessing and model training pipeline.
+- `train_model.py`: Data preprocessing, model training, evaluation logging, and metadata generation.
 - `agent.py`: LangGraph advisory workflow powered by Groq.
 - `rag_engine.py`: FAISS-backed retrieval layer for market context.
 - `llm_config.py`: Shared Groq provider configuration helpers.
 - `models/`: Contains the serialized `house_model.pkl`.
 - `models/faiss_index/`: Built locally on first successful RAG indexing run and kept out of Git.
-- `assets/`: Contains `model_metadata.json` and static assets.
+- `assets/`: Contains `model_metadata.json` with metrics, schema, and training run details plus static assets.
 - `data/knowledge_base/`: Tracked starter market and comparable-sales documents used to build the local FAISS index.
 
 ## 👥 Team
