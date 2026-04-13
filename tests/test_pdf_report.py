@@ -57,3 +57,10 @@ def test_build_property_report_full():
     
     assert isinstance(pdf_bytes, bytes)
     assert len(pdf_bytes) > 0
+
+
+def test_get_advisory_mode():
+    from pdf_report import _get_advisory_mode
+    assert _get_advisory_mode("### 📢 Advisory Status: Fallback Mode\nSome context.") == "Fallback summary"
+    assert _get_advisory_mode("This is a Groq investment advisory context.") == "Groq investment advisory"
+    assert _get_advisory_mode("Advisory unavailable: API error.") == "Advisory unavailable"

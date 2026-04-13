@@ -217,7 +217,7 @@ class ValuationApp:
                             st.markdown(f"📅 {comp.get('date') or 'N/A'}")
         except Exception as e:
             advice = f"Advisory unavailable: {e}"
-            st.info("The valuation was generated successfully, but the AI advisory could not be completed at this time (API unavailable).")
+            st.info("The valuation was generated successfully, but the AI advisory could not be completed at this time.")
             with st.expander("View Error Details"):
                 st.caption(str(e))
 
