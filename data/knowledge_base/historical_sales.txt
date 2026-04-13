@@ -1,0 +1,191 @@
+Historical Property Sales & Comparable Transactions (2024-2026)
+
+## Recent Comparable Sales - Residential Properties
+
+### Transaction 1: Main Road Property
+- Date: March 2026
+- Location: Main Road, Downtown Area
+- Property Type: Residential House
+- Area: 3200 sq ft
+- Bedrooms: 3
+- Bathrooms: 2
+- Stories: 2
+- Parking: 1
+- Main Road Access: Yes
+- Guest Room: Yes
+- Basement: Yes
+- Hot Water Heating: Yes
+- Air Conditioning: Yes
+- Sale Price: ₹82,00,000 (₹82L)
+- Price Per Sq Ft: ₹25,625
+- Notes: Recently renovated with modern amenities, excellent market visibility due to main road access
+
+### Transaction 2: Residential Community Property
+- Date: February 2026
+- Location: Residential Community, Suburban Area
+- Property Type: Residential House
+- Area: 2800 sq ft
+- Bedrooms: 3
+- Bathrooms: 2
+- Stories: 1
+- Parking: 2
+- Main Road Access: No
+- Guest Room: No
+- Basement: No
+- Hot Water Heating: Yes
+- Air Conditioning: Yes
+- Sale Price: ₹75,50,000 (₹75.5L)
+- Price Per Sq Ft: ₹26,964
+- Notes: Well-maintained property in quiet neighborhood, strong demand for family homes
+
+### Transaction 3: Premium Location Property
+- Date: January 2026
+- Location: Premium Neighborhood, Central Area
+- Property Type: Residential House
+- Area: 3500 sq ft
+- Bedrooms: 3
+- Bathrooms: 2
+- Stories: 2
+- Parking: 2
+- Main Road Access: Yes
+- Guest Room: Yes
+- Basement: Yes
+- Hot Water Heating: Yes
+- Air Conditioning: Yes
+- Sale Price: ₹88,75,000 (₹88.75L)
+- Price Per Sq Ft: ₹25,357
+- Notes: Premium location with full amenities, high buyer competition
+
+### Transaction 4: Budget-Friendly Property
+- Date: December 2025
+- Location: Emerging Neighborhood
+- Property Type: Residential House
+- Area: 2500 sq ft
+- Bedrooms: 2
+- Bathrooms: 1
+- Stories: 1
+- Parking: 1
+- Main Road Access: No
+- Guest Room: No
+- Basement: No
+- Hot Water Heating: No
+- Air Conditioning: No
+- Sale Price: ₹52,00,000 (₹52L)
+- Price Per Sq Ft: ₹20,800
+- Notes: Basic amenities, good for first-time buyers, developing area with growth potential
+
+### Transaction 5: Luxury Property with Basement
+- Date: November 2025
+- Location: Upscale Residential Zone
+- Property Type: Residential House
+- Area: 4200 sq ft
+- Bedrooms: 4
+- Bathrooms: 3
+- Stories: 2
+- Parking: 2
+- Main Road Access: No
+- Guest Room: Yes
+- Basement: Yes
+- Hot Water Heating: Yes
+- Air Conditioning: Yes
+- Sale Price: ₹1,05,00,000 (₹1.05Cr)
+- Price Per Sq Ft: ₹25,000
+- Notes: High-end finishes, spacious property, strong appeal to premium buyers
+
+### Transaction 6: Entry-Level Family Home
+- Date: October 2025
+- Location: Suburban Residential Area
+- Property Type: Residential House
+- Area: 2200 sq ft
+- Bedrooms: 2
+- Bathrooms: 1
+- Stories: 1
+- Parking: 1
+- Main Road Access: No
+- Guest Room: No
+- Basement: No
+- Hot Water Heating: Yes
+- Air Conditioning: No
+- Sale Price: ₹48,50,000 (₹48.5L)
+- Price Per Sq Ft: ₹22,045
+- Notes: Perfect starter home, active buyer interest in suburban segments
+
+### Transaction 7: Main Road Commercial Adjacent
+- Date: September 2025
+- Location: Main Road, Mixed-Use Area
+- Property Type: Residential House
+- Area: 3800 sq ft
+- Bedrooms: 3
+- Bathrooms: 2
+- Stories: 2
+- Parking: 1
+- Main Road Access: Yes
+- Guest Room: Yes
+- Basement: No
+- Hot Water Heating: Yes
+- Air Conditioning: Yes
+- Sale Price: ₹79,00,000 (₹79L)
+- Price Per Sq Ft: ₹20,789
+- Notes: Main road location benefits commercial activity, slight noise consideration
+
+### Transaction 8: Suburban with No Air Conditioning
+- Date: August 2025
+- Location: Residential Community, Suburb
+- Property Type: Residential House
+- Area: 3100 sq ft
+- Bedrooms: 3
+- Bathrooms: 2
+- Stories: 2
+- Parking: 1
+- Main Road Access: No
+- Guest Room: No
+- Basement: Yes
+- Hot Water Heating: Yes
+- Air Conditioning: No
+- Sale Price: ₹70,00,000 (₹70L)
+- Price Per Sq Ft: ₹22,581
+- Notes: Finished basement adds value, air conditioning absence reflected in pricing, buyer invested in upgrades
+
+### Transaction 9: Spacious Family Property
+- Date: July 2025
+- Location: Premium Suburban Area
+- Property Type: Residential House
+- Area: 4500 sq ft
+- Bedrooms: 4
+- Bathrooms: 3
+- Stories: 2
+- Parking: 2
+- Main Road Access: No
+- Guest Room: Yes
+- Basement: Yes
+- Hot Water Heating: Yes
+- Air Conditioning: Yes
+- Sale Price: ₹98,00,000 (₹98L)
+- Price Per Sq Ft: ₹21,778
+- Notes: Spacious layout appeals to large families, strong amenity set, premium suburban location
+
+### Transaction 10: Compact No-Frills Property
+- Date: June 2025
+- Location: Urban Fringe, Developing Area
+- Property Type: Residential House
+- Area: 1800 sq ft
+- Bedrooms: 2
+- Bathrooms: 1
+- Stories: 1
+- Parking: 1
+- Main Road Access: No
+- Guest Room: No
+- Basement: No
+- Hot Water Heating: No
+- Air Conditioning: No
+- Sale Price: ₹39,00,000 (₹39L)
+- Price Per Sq Ft: ₹21,667
+- Notes: Investor property, good appreciation potential in developing neighborhood
+
+## Market Insights
+- 3-bedroom homes with full amenities typically command ₹75L - ₹88L in current market
+- Main road access premium: +5-8% above comparable non-main-road properties
+- Basement addition: +5-10% value uplift for properly finished spaces
+- Air conditioning premium: +8-10% market value in warm climate zones
+- Price appreciation: Average 8-12% annually in prime neighborhoods
+- Price stability: ±3-5% variance based on micro-location within neighborhoods

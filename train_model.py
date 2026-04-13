@@ -73,15 +73,25 @@ def load_data(file_path: Path) -> pd.DataFrame:
             logging.info("Dataset saved to %s", file_path)
         except Exception as exc:
             logging.error(
-                "Failed to download dataset from Kaggle. Ensure network access and Kaggle "
-                "credentials are configured. Place `kaggle.json` in `~/.kaggle/` with "
-                "the correct permissions or set `KAGGLE_USERNAME` and `KAGGLE_KEY`. "
+                "Failed to download dataset from Kaggle. \n"
+                "To resolve this, you can either:\n"
+                "1. Provide Kaggle credentials: Create an API token at kaggle.com and place 'kaggle.json' in '~/.kaggle/'\n"
+                "2. Manual Download: Download 'Housing.csv' from https://www.kaggle.com/datasets/yasserh/housing-prices-dataset and place it in the 'data/' directory.\n"
                 "Original error: %s",
                 exc,
             )
-            raise RuntimeError("Failed to download dataset from Kaggle.") from exc
+            raise RuntimeError("Data collection failed. Model cannot be trained without Housing.csv.") from exc
 
-    return pd.read_csv(file_path)
+    df = pd.read_csv(file_path)
+
+    # Basic data integrity check
+    required_raw_cols = set(FEATURES) | {TARGET}
+    missing_cols = required_raw_cols - set(df.columns)
+    if missing_cols:
+        logging.error(f"The dataset is missing required columns: {missing_cols}")
+        raise RuntimeError(f"Incomplete dataset. Missing: {missing_cols}")
+
+    return df
 
 
 def preprocess_data(df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:

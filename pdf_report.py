@@ -40,7 +40,7 @@ def _get_advisory_mode(advisory_text: str) -> str:
     normalized = advisory_text.lower()
     if "advisory unavailable" in normalized:
         return "Advisory unavailable"
-    if "fallback advice" in normalized:
+    if "fallback mode" in normalized:
         return "Fallback summary"
     return "Groq investment advisory"
 

@@ -29,7 +29,12 @@ class ValuationApp:
         
     def _load_model(self):
         if not MODEL_PATH.exists():
-            st.error(f"⚠️ Model file not found at {MODEL_PATH}. Please run `train_model.py` first.")
+            st.error(f"### 🛑 Model Not Found")
+            st.warning(f"The core valuation model was not found at `{MODEL_PATH}`. \n\n"
+                       "**To fix this:**\n"
+                       "Run the training script in your terminal:\n"
+                       "```bash\npython train_model.py\n```\n"
+                       "This will download the dataset and train the Random Forest model.")
             return None
         
         try:
@@ -212,7 +217,7 @@ class ValuationApp:
                             st.markdown(f"📅 {comp.get('date') or 'N/A'}")
         except Exception as e:
             advice = f"Advisory unavailable: {e}"
-            st.info("The valuation was generated successfully, but the AI advisory could not be completed at this time (API unavailable).")
+            st.info("The valuation was generated successfully, but the AI advisory could not be completed at this time.")
             with st.expander("View Error Details"):
                 st.caption(str(e))
 

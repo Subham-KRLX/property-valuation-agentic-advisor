@@ -109,10 +109,11 @@ class PropertyAdvisorAgent:
                     comps_summary += f"- {comp.get('location', 'N/A')}: ₹{comp.get('price', 'N/A')} ({comp.get('date', 'N/A')})\n"
             
             fallback_advice = (
-                f"**[FALLBACK ADVICE - NO GROQ KEY]**\n"
-                f"Based on the ML prediction of ₹{state['predicted_price']:,.0f}, this property is solid. "
-                f"We also retrieved the following context from our knowledge base:\n"
-                f"...\n{state['rag_context']}\n..."
+                f"### 📢 Advisory Status: Fallback Mode\n"
+                f"**Note: `GROQ_API_KEY` not configured.** Grounded investment advisory is currently running in fallback mode.\n\n"
+                f"**ML Valuation:** Based on our trained model, the property is estimated at **₹{state['predicted_price']:,.0f}**.\n\n"
+                f"**Market Context (Retrieved):**\n"
+                f"{state['rag_context']}\n"
                 f"{comps_summary}"
             )
             return {"final_advice": fallback_advice}
