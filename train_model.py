@@ -9,12 +9,17 @@ from pathlib import Path
 
 import joblib
 import kagglehub
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
+
+matplotlib.use("Agg")
 
 ASSETS_DIR = Path("assets")
 MODELS_DIR = Path("models")
@@ -22,6 +27,8 @@ DATA_DIR = Path("data")
 DATA_FILE = DATA_DIR / "Housing.csv"
 MODEL_FILE = MODELS_DIR / "house_model.pkl"
 METADATA_FILE = ASSETS_DIR / "model_metadata.json"
+FEATURE_IMPORTANCE_PLOT = ASSETS_DIR / "feature_importance.png"
+PREDICTED_VS_ACTUAL_PLOT = ASSETS_DIR / "predicted_vs_actual.png"
 
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
@@ -50,6 +57,7 @@ FEATURES = [
 TARGET = "price"
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+sns.set_theme(style="whitegrid")
 
 
 def setup_directories() -> None:
@@ -84,11 +92,10 @@ def load_data(file_path: Path) -> pd.DataFrame:
 
     df = pd.read_csv(file_path)
 
-    # Basic data integrity check
     required_raw_cols = set(FEATURES) | {TARGET}
     missing_cols = required_raw_cols - set(df.columns)
     if missing_cols:
-        logging.error(f"The dataset is missing required columns: {missing_cols}")
+        logging.error("The dataset is missing required columns: %s", missing_cols)
         raise RuntimeError(f"Incomplete dataset. Missing: {missing_cols}")
 
     return df
@@ -161,20 +168,65 @@ def train_candidate_models(
 
 def evaluate_candidates(
     models: dict[str, object], X_test: pd.DataFrame, y_test: pd.Series
-) -> dict[str, dict[str, float]]:
-    """Evaluate all trained candidates and return their metrics."""
-    evaluations: dict[str, dict[str, float]] = {}
+) -> dict[str, dict[str, object]]:
+    """Evaluate all trained candidates and return their metrics and predictions."""
+    evaluations: dict[str, dict[str, object]] = {}
     for name, model in models.items():
         predictions = model.predict(X_test)
         metrics = calculate_metrics(y_test, predictions)
-        evaluations[name] = metrics
+        evaluations[name] = {
+            "metrics": metrics,
+            "predictions": predictions,
+        }
         log_metrics(name.replace("_", " ").title(), metrics)
     return evaluations
+
+
+def save_model(model: RandomForestRegressor, output_path: Path) -> None:
+    """Serialize the trained model to disk."""
+    joblib.dump(model, output_path)
+    logging.info("Model successfully saved to %s", output_path)
+
+
+def save_feature_importance_plot(feature_importance: dict[str, float], output_path: Path) -> None:
+    """Create a horizontal feature importance chart for the selected model."""
+    importance_df = (
+        pd.DataFrame({"Feature": list(feature_importance.keys()), "Importance": list(feature_importance.values())})
+        .sort_values(by="Importance", ascending=True)
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.barh(importance_df["Feature"], importance_df["Importance"], color="#1f77b4")
+    ax.set_title("Random Forest Feature Importance")
+    ax.set_xlabel("Importance")
+    ax.set_ylabel("Feature")
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    logging.info("Saved feature importance plot to %s", output_path)
+
+
+def save_predicted_vs_actual_plot(y_true: pd.Series, y_pred: np.ndarray, output_path: Path) -> None:
+    """Create a predicted-vs-actual scatter plot with a perfect-fit reference line."""
+    lower_bound = min(float(np.min(y_true)), float(np.min(y_pred)))
+    upper_bound = max(float(np.max(y_true)), float(np.max(y_pred)))
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.scatter(y_true, y_pred, alpha=0.75, color="#2ca02c", edgecolors="white", linewidth=0.5)
+    ax.plot([lower_bound, upper_bound], [lower_bound, upper_bound], linestyle="--", color="#d62728", linewidth=2)
+    ax.set_title("Predicted vs Actual Prices")
+    ax.set_xlabel("Actual Price")
+    ax.set_ylabel("Predicted Price")
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    logging.info("Saved predicted-vs-actual plot to %s", output_path)
 
 
 def build_metadata(
     model: RandomForestRegressor,
     selected_metrics: dict[str, float],
+    evaluations: dict[str, dict[str, object]],
     data_summary: dict[str, int],
     train_rows: int,
     test_rows: int,
@@ -185,9 +237,24 @@ def build_metadata(
         for feature, importance in zip(FEATURES, model.feature_importances_.tolist())
     }
 
+    benchmark_summary = {}
+    for key, evaluation in evaluations.items():
+        benchmark_summary[key] = {
+            "label": key.replace("_", " ").title(),
+            "metrics": evaluation["metrics"],
+        }
+
     return {
         "metrics": selected_metrics,
         "feature_importance": feature_importance,
+        "benchmark_summary": {
+            "selected_model": "RandomForestRegressor",
+            "selection_reason": (
+                "Random Forest remains the production model because it captures non-linear feature interactions "
+                "and exposes feature importance for the app insights tab."
+            ),
+            "candidates": benchmark_summary,
+        },
         "model": {
             "name": type(model).__name__,
             "artifact_path": str(MODEL_FILE),
@@ -215,13 +282,11 @@ def build_metadata(
             "binary_columns": BINARY_COLUMNS,
             "feature_count": len(FEATURES),
         },
+        "artifacts": {
+            "predicted_vs_actual": str(PREDICTED_VS_ACTUAL_PLOT),
+            "feature_importance": str(FEATURE_IMPORTANCE_PLOT),
+        },
     }
-
-
-def save_model(model: RandomForestRegressor, output_path: Path) -> None:
-    """Serialize the trained model to disk."""
-    joblib.dump(model, output_path)
-    logging.info("Model successfully saved to %s", output_path)
 
 
 def save_metadata(metadata: dict[str, object], output_path: Path) -> None:
@@ -258,12 +323,26 @@ def main() -> None:
     evaluations = evaluate_candidates(models, X_test, y_test)
 
     selected_model = models["random_forest"]
-    selected_metrics = evaluations["random_forest"]
+    selected_metrics = evaluations["random_forest"]["metrics"]
 
     save_model(selected_model, MODEL_FILE)
+    save_feature_importance_plot(
+        {
+            feature: float(importance)
+            for feature, importance in zip(FEATURES, selected_model.feature_importances_.tolist())
+        },
+        FEATURE_IMPORTANCE_PLOT,
+    )
+    save_predicted_vs_actual_plot(
+        y_test,
+        evaluations["random_forest"]["predictions"],
+        PREDICTED_VS_ACTUAL_PLOT,
+    )
+
     metadata = build_metadata(
         model=selected_model,
         selected_metrics=selected_metrics,
+        evaluations=evaluations,
         data_summary=data_summary,
         train_rows=len(X_train),
         test_rows=len(X_test),
