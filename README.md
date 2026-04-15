@@ -5,6 +5,9 @@ A high-performance hybrid AI/ML platform for real estate valuation. It pairs a d
 ## 🔗 Live Demo
 **Access the application on Streamlit Cloud:** [Live Demo](https://property-valuation-agentic-advisor-xvfy6pzq5caq72fmxlzrak.streamlit.app/)
 
+> [!NOTE]
+> The hosted deployment is monitored via `/healthz`. If the root app URL redirects through `share.streamlit.io/-/auth/app`, the app is alive but Streamlit Cloud visibility is still restricted for anonymous visitors.
+
 ## 📐 System Architecture
 The system follows an **Agentic Workflow** where ML predictions are contextually enriched by a knowledge base before being summarized by an LLM.
 
@@ -84,6 +87,15 @@ streamlit run app.py
 ```bash
 python3 -m pytest tests/
 ```
+
+### Deployment Smoke Check
+```bash
+bash scripts/check_streamlit_deployment.sh
+```
+
+What it verifies:
+- `APP_URL/healthz` responds with `{"status":"ok"}`
+- the root URL is checked for a Streamlit auth redirect, which indicates the deployment is running but not publicly accessible yet
 
 ## 📂 Project Structure
 - `app.py`: Streamlit frontend.

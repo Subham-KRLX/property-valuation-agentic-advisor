@@ -1,0 +1,21 @@
+name: Deployment Smoke Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  smoke-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run Streamlit deployment smoke check
+        env:
+          APP_URL: https://property-valuation-agentic-advisor-xvfy6pzq5caq72fmxlzrak.streamlit.app
+        run: bash scripts/check_streamlit_deployment.sh
+
