@@ -6,7 +6,7 @@ import math
 import re
 from typing import Any
 
-from rag_engine import RAGEngine
+from src.rag_engine import RAGEngine
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 

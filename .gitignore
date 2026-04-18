@@ -26,8 +26,9 @@ data/*
 !data/knowledge_base/
 data/knowledge_base/*
 !data/knowledge_base/*.txt
-# models/  <-- We ARE committing the model for deployment simplicity
-!models/house_model.pkl
+# Model artifacts (do not commit)
+models/*.pkl
+models/*.joblib
 models/faiss_index/
 
 # Environment

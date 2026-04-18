@@ -34,13 +34,12 @@ jobs:
       - name: Compile application modules
         run: |
           python -m py_compile \
-            app.py \
-            agent.py \
-            rag_engine.py \
-            validator.py \
-            pdf_report.py \
-            llm_config.py \
-            train_model.py
+            src/app.py \
+            src/agent.py \
+            src/rag_engine.py \
+            src/validator.py \
+            src/pdf_report.py \
+            src/train_model.py
 
       - name: Run test suite
         run: python -m pytest tests/

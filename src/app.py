@@ -4,10 +4,10 @@ import joblib
 import json
 from datetime import datetime
 from pathlib import Path
-from validator import PropertyInputValidator
+from src.validator import PropertyInputValidator
 
-from agent import PropertyAdvisorAgent
-from pdf_report import build_property_report
+from src.agent import PropertyAdvisorAgent
+from src.pdf_report import build_property_report
 
 PAGE_TITLE = "Intelligent Property Valuation"
 PAGE_ICON = "🏠"
@@ -122,7 +122,7 @@ class ValuationApp:
                 f"The core valuation model was not found at `{MODEL_PATH}`. \n\n"
                 "**To fix this:**\n"
                 "Run the training script in your terminal:\n"
-                "```bash\npython3 train_model.py\n```\n"
+                "```bash\npython3 src/train_model.py\n```\n"
                 "This will download the dataset and train the Random Forest model."
             )
             return None
@@ -169,7 +169,7 @@ class ValuationApp:
         st.sidebar.caption("Enter property details, then run a valuation. Results appear in the main panel.")
 
         if self.model is None:
-            st.sidebar.warning("Model missing — run `python3 train_model.py` first.")
+            st.sidebar.warning("Model missing — run `python3 src/train_model.py` first.")
             return
         st.sidebar.markdown("### Status")
         st.sidebar.caption(f"Model: {'loaded' if self.model is not None else 'missing'}")
@@ -622,7 +622,7 @@ def main():
             - **Property status:** Parking available, Guest room, Hot water heating.
             """)
         else:
-            st.warning("Model metadata not found. Please run `python3 train_model.py` to generate insights.")
+            st.warning("Model metadata not found. Please run `python3 src/train_model.py` to generate insights.")
 
 
 if __name__ == "__main__":
