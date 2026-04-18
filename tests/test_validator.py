@@ -1,5 +1,5 @@
 import pytest
-from validator import PropertyInputValidator, ValidationResult
+from src.validator import PropertyInputValidator, ValidationResult
 
 @pytest.fixture
 def validator():

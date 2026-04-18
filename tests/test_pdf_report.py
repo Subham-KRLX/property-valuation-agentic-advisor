@@ -1,5 +1,5 @@
 import pytest
-from pdf_report import build_property_report, _format_currency, _format_label, _format_value
+from src.pdf_report import build_property_report, _format_currency, _format_label, _format_value
 
 def test_format_currency():
     assert _format_currency(1234567) == "INR 1,234,567"
@@ -60,7 +60,6 @@ def test_build_property_report_full():
 
 
 def test_get_advisory_mode():
-    from pdf_report import _get_advisory_mode
-    assert _get_advisory_mode("### 📢 Advisory Status: Fallback Mode\nSome context.") == "Fallback summary"
-    assert _get_advisory_mode("This is a Groq investment advisory context.") == "Groq investment advisory"
+    from src.pdf_report import _get_advisory_mode
+    assert _get_advisory_mode("This is a template advisory context.") == "Template-based advisory"
     assert _get_advisory_mode("Advisory unavailable: API error.") == "Advisory unavailable"
