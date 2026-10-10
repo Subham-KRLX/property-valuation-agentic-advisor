@@ -27,6 +27,10 @@ PRESETS = {
                             mainroad=True, guestroom=True, basement=True,
                             hotwaterheating=True, airconditioning=True),
 }
+PRESETS["Happy path"] = dict(PRESETS["Family home"], area=2500, guestroom=False)
+PRESETS["Outlier demo"] = dict(PRESETS["Large residence"], area=5000, bedrooms=1,
+                              bathrooms=1, parking=1, mainroad=False,
+                              guestroom=False, hotwaterheating=False)
 
 
 def format_inr(value):
@@ -49,6 +53,14 @@ def styles():
     .estimate p {margin: .4rem 0 0; color: #52665e;}
     [data-testid="stMetricValue"] {font-size: 1.6rem;}
     [data-testid="stTabs"] {margin-top: 1.5rem;}
+    .pv-splash {position: fixed; inset: 0; z-index: 9999; display: grid;
+      place-items: center; pointer-events: none; background: #f3f6f5;
+      animation: welcome-out .5s .4s forwards;}
+    .pv-splash-card {padding: 1.5rem; border: 1px solid #dce5e1; background: white; border-radius: 8px;}
+    .pv-splash-title {font-weight: 700; color: #087f68;}
+    .pv-splash-sub {color: #596b65; margin-top: .4rem;}
+    @keyframes welcome-out {to {opacity: 0; visibility: hidden;}}
+    @media(prefers-reduced-motion: reduce) {.pv-splash {display: none;}}
     @media(max-width: 640px) {
       .stMainBlockContainer {padding: 4rem 1rem 2rem;}
       .workspace-header h1 {font-size: 1.6rem;}
@@ -104,7 +116,7 @@ def empty_state():
     st.caption("Research prototype. Estimates use historical data; comparable records are not a live market feed.")
 
 
-def result_overview(result):
+def result_overview(result, metadata=None):
     prediction = result["prediction"]
     raw = result["raw_inputs"]
     st.markdown(f"""
@@ -119,6 +131,11 @@ def result_overview(result):
     b.metric("Parking spaces", str(raw["parking"]))
     c.metric("Amenities included", f"{result['amenities']} / 5")
     st.caption(f"Analysis generated {result['generated_at']:%d %b %Y, %H:%M}. Historical model estimate, not an appraisal.")
+    mae = (metadata or {}).get("metrics", {}).get("mae")
+    if isinstance(mae, (int, float)):
+        with st.expander("Historical model error"):
+            st.metric("Estimate ± average test error", f"{format_inr(max(0, prediction - mae))} – {format_inr(prediction + mae)}")
+            st.caption("Illustrative sensitivity band using held-out MAE. This is not a calibrated confidence interval or a guaranteed price range.")
     warnings = result["validation"].warnings
     if warnings:
         for warning in warnings:

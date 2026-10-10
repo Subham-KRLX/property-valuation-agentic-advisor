@@ -4,6 +4,7 @@ import joblib
 import json
 from datetime import datetime
 from pathlib import Path
+import textwrap
 from src.validator import PropertyInputValidator
 
 from src.agent import PropertyAdvisorAgent
@@ -41,6 +42,39 @@ def _format_inr(value: float) -> str:
 @st.cache_resource
 def load_advisor_agent():
     return PropertyAdvisorAgent()
+
+
+def _render_splash_screen() -> None:
+    """
+    Displays a lightweight splash overlay once per browser session.
+
+    Notes:
+    - Streamlit reruns the script often; we guard with session_state.
+    - The overlay self-dismisses via CSS animation (no JS).
+    """
+    if st.session_state.get("pv_splash_shown"):
+        return
+    st.session_state.pv_splash_shown = True
+
+    st.markdown(
+        textwrap.dedent(
+            f"""
+            <div class="pv-splash" role="presentation">
+              <div class="pv-splash-card">
+                <div class="pv-splash-top">
+                  <div class="pv-splash-mark">{PAGE_ICON}</div>
+                  <div>
+                    <div class="pv-splash-title">{PAGE_TITLE}</div>
+                    <div class="pv-splash-sub">Valuation • Comps • PDF brief</div>
+                  </div>
+                </div>
+                <div class="pv-splash-bar"><div></div></div>
+              </div>
+            </div>
+            """
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 class ValuationApp:
@@ -321,7 +355,7 @@ class ValuationApp:
 
         advice = result["advice"]
 
-        dashboard.result_overview(result)
+        dashboard.result_overview(result, self.metadata)
         summary, evidence, export = st.tabs(["Investment summary", "Comparable evidence", "Export report"])
         with summary:
             st.subheader("Investment perspective")
@@ -375,6 +409,7 @@ class ValuationApp:
 
 def main():
     _inject_global_styles()
+    _render_splash_screen()
     app = ValuationApp()
     app.render_sidebar()
     app.render_header()
