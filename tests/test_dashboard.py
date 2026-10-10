@@ -17,7 +17,8 @@ def test_preset_valuation_and_reset():
     assert result["inputs"]["area"] == 6000
     assert result["comps"]
     assert any(metric.label == "Median comparable price" and metric.value != "Unavailable" for metric in app.metric)
-    assert app.get("arrow_vega_lite_chart")
+    assert "Sale price" in app.dataframe[0].value.columns
+    assert "Unavailable" not in app.dataframe[0].value["Sale price"].tolist()
     assert app.get("download_button")
     app.button[1].click().run()
     assert not app.exception

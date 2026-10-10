@@ -127,13 +127,16 @@ class ValuationApp:
         if "pv_last_result" not in st.session_state:
             st.session_state.pv_last_result = None
 
+        defaults = dict(dashboard.PRESETS["Family home"], parking=1, guestroom=False)
+        for feature, value in defaults.items():
+            st.session_state.setdefault(f"pv_{feature}", value)
+
         with st.sidebar.form("valuation_form"):
             st.markdown("### Property details")
             area = st.number_input(
                 "Area (sq ft)",
                 min_value=300,
                 max_value=25000,
-                value=3000,
                 key="pv_area",
                 step=50,
                 help="Built-up area in square feet.",
@@ -144,7 +147,6 @@ class ValuationApp:
                     "Bedrooms",
                     min_value=1,
                     max_value=10,
-                    value=3,
                     key="pv_bedrooms",
                     step=1,
                 )
@@ -152,7 +154,6 @@ class ValuationApp:
                     "Bathrooms",
                     min_value=1,
                     max_value=6,
-                    value=2,
                     key="pv_bathrooms",
                     step=1,
                 )
@@ -161,7 +162,6 @@ class ValuationApp:
                     "Stories",
                     min_value=1,
                     max_value=5,
-                    value=2,
                     key="pv_stories",
                     step=1,
                 )
@@ -169,17 +169,16 @@ class ValuationApp:
                     "Parking spots",
                     min_value=0,
                     max_value=5,
-                    value=1,
                     key="pv_parking",
                     step=1,
                 )
 
             st.markdown("### Amenities")
-            mainroad = st.checkbox("Main road access", value=True, key="pv_mainroad")
-            guestroom = st.checkbox("Guest room", value=False, key="pv_guestroom")
-            basement = st.checkbox("Basement", value=False, key="pv_basement")
-            hotwaterheating = st.checkbox("Hot water heating", value=False, key="pv_hotwaterheating")
-            airconditioning = st.checkbox("Air conditioning", value=True, key="pv_airconditioning")
+            mainroad = st.checkbox("Main road access", key="pv_mainroad")
+            guestroom = st.checkbox("Guest room", key="pv_guestroom")
+            basement = st.checkbox("Basement", key="pv_basement")
+            hotwaterheating = st.checkbox("Hot water heating", key="pv_hotwaterheating")
+            airconditioning = st.checkbox("Air conditioning", key="pv_airconditioning")
 
             submitted = st.form_submit_button("Estimate value", width="stretch", type="primary")
 
