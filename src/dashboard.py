@@ -36,7 +36,7 @@ def format_inr(value):
 def styles():
     st.markdown("""
     <style>
-    .stMainBlockContainer {max-width: 1280px; padding-top: 2rem; padding-bottom: 3rem;}
+    .stMainBlockContainer {max-width: 1280px; padding-top: 4rem; padding-bottom: 3rem;}
     [data-testid="stSidebar"] {border-right: 1px solid #dce5e1;}
     .workspace-header {border-bottom: 1px solid #dce5e1; padding-bottom: 1.4rem; margin-bottom: 1.5rem;}
     .workspace-header h1 {font-size: 2rem; line-height: 1.25; margin: .35rem 0; letter-spacing: 0;}
@@ -48,7 +48,7 @@ def styles():
     [data-testid="stMetricValue"] {font-size: 1.6rem;}
     [data-testid="stTabs"] {margin-top: 1.5rem;}
     @media(max-width: 640px) {
-      .stMainBlockContainer {padding: 1.2rem 1rem 2rem;}
+      .stMainBlockContainer {padding: 4rem 1rem 2rem;}
       .workspace-header h1 {font-size: 1.6rem;}
       .estimate-value {font-size: 2rem;}
       .estimate {padding: 1rem;}
@@ -125,6 +125,21 @@ def result_overview(result):
         st.success("Input checks passed. No input anomalies were flagged.")
 
 
+def advisory(text):
+    summary, marker, remainder = text.partition("Retrieved market context (knowledge base):")
+    if not marker:
+        st.write(text)
+        return
+    context, recommendation_marker, recommendation = remainder.rpartition("Recommendation:")
+    st.write(summary)
+    if recommendation_marker:
+        st.write(f"Recommendation: {recommendation}")
+    else:
+        context = remainder
+    with st.expander("Retrieved source context"):
+        st.markdown(context)
+
+
 def comparables(result):
     st.subheader("Comparable sales")
     st.caption("Matched records from the local knowledge base. Locations and sale dates may differ from the subject property.")
@@ -147,7 +162,7 @@ def comparables(result):
     if "price" in frame:
         frame["price"] = prices.map(lambda x: format_inr(x) if pd.notna(x) else "Unavailable")
     frame = frame.rename(columns={"location": "Location", "price": "Sale price", "date": "Sale date", "area": "Area (sq ft)"})
-    st.dataframe(frame, use_container_width=True, hide_index=True)
+    st.dataframe(frame, width="stretch", hide_index=True)
 
 
 def model_insights(metadata):
@@ -171,7 +186,7 @@ def model_insights(metadata):
         st.subheader("Benchmark comparison")
         rows = [{"Model": item["label"], "R²": item["metrics"]["r2"],
                  "MAE (INR)": item["metrics"]["mae"], "RMSE (INR)": item["metrics"]["rmse"]} for item in candidates.values()]
-        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
     training = metadata.get("training", {})
     with st.expander("Training and methodology"):
         st.write("Random Forest regression with deterministic TF-IDF retrieval and a template-based advisor. No language model or API key is required.")

@@ -23,7 +23,7 @@ st.set_page_config(
     page_title=PAGE_TITLE,
     page_icon=PAGE_ICON,
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 
@@ -147,9 +147,9 @@ class ValuationApp:
             hotwaterheating = st.checkbox("Hot water heating", value=False, key="pv_hotwaterheating")
             airconditioning = st.checkbox("Air conditioning", value=True, key="pv_airconditioning")
 
-            submitted = st.form_submit_button("Estimate value", use_container_width=True, type="primary")
+            submitted = st.form_submit_button("Estimate value", width="stretch", type="primary")
 
-        st.sidebar.button("Reset property", use_container_width=True, on_click=dashboard.reset_workspace)
+        st.sidebar.button("Reset property", width="stretch", on_click=dashboard.reset_workspace)
 
         if submitted:
             self._run_valuation(
@@ -326,7 +326,7 @@ class ValuationApp:
         with summary:
             st.subheader("Investment perspective")
             st.caption("Rule-based summary grounded in retrieved records.")
-            st.write(advice)
+            dashboard.advisory(advice)
             if result.get("advisory_error"):
                 st.warning("The advisory service is unavailable. The model estimate is still available.")
         with evidence:
@@ -370,7 +370,7 @@ class ValuationApp:
             data=report_bytes,
             file_name=file_name,
             mime="application/pdf",
-            use_container_width=True,
+            width="stretch",
         )
 
 def main():
