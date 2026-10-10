@@ -6,6 +6,8 @@ from statistics import median
 import pandas as pd
 import streamlit as st
 
+from src.agent import _parse_inr
+
 
 FEATURE_LABELS = {
     "area": "Floor area", "bedrooms": "Bedrooms", "bathrooms": "Bathrooms",
@@ -148,7 +150,7 @@ def comparables(result):
         st.info("No comparable sales available for this property.")
         return
     frame = pd.DataFrame(comps)
-    prices = pd.to_numeric(frame.get("price", pd.Series(dtype=float)), errors="coerce")
+    prices = pd.to_numeric(frame.get("price", pd.Series(dtype=float)).map(_parse_inr), errors="coerce")
     valid = prices.dropna()
     if not valid.empty:
         a, b = st.columns(2)
@@ -161,7 +163,8 @@ def comparables(result):
         st.bar_chart(chart, x="Property", y="Price (INR)", color="#087F68")
     if "price" in frame:
         frame["price"] = prices.map(lambda x: format_inr(x) if pd.notna(x) else "Unavailable")
-    frame = frame.rename(columns={"location": "Location", "price": "Sale price", "date": "Sale date", "area": "Area (sq ft)"})
+    columns = [name for name in ("location", "date", "price", "area", "bedrooms", "bathrooms") if name in frame]
+    frame = frame[columns].rename(columns={"location": "Location", "price": "Sale price", "date": "Sale date", "area": "Area (sq ft)", "bedrooms": "Bedrooms", "bathrooms": "Bathrooms"})
     st.dataframe(frame, width="stretch", hide_index=True)
 
 
