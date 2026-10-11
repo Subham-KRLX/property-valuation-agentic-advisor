@@ -1,207 +1,62 @@
-import streamlit as st
-import pandas as pd
-import joblib
+"""Habitat: a considered workspace for property valuation."""
+from __future__ import annotations
+
+import base64
 import json
 from datetime import datetime
 from pathlib import Path
-import textwrap
+
+import joblib
+import pandas as pd
+import streamlit as st
+
+from src.agent import PropertyAdvisorAgent, _parse_inr
+from src.pdf_report import build_property_report
 from src.validator import PropertyInputValidator
 
-from src.agent import PropertyAdvisorAgent
-from src.pdf_report import build_property_report
+ROOT = Path(__file__).resolve().parents[1]
+MODEL_PATH = ROOT / "models/house_model.pkl"
+METADATA_PATH = ROOT / "assets/model_metadata.json"
+DEFAULTS = dict(area=3000, bedrooms=3, bathrooms=2, stories=2, parking=1,
+                mainroad=True, guestroom=False, basement=False,
+                hotwaterheating=False, airconditioning=True)
+PRESETS = {
+    "Family home": DEFAULTS,
+    "Compact home": {**DEFAULTS, "area": 1800, "bedrooms": 2, "bathrooms": 1, "stories": 1},
+    "Large residence": {**DEFAULTS, "area": 6000, "bedrooms": 4, "bathrooms": 3, "parking": 2, "guestroom": True},
+}
+LABELS = {"area": "Floor area", "bedrooms": "Bedrooms", "bathrooms": "Bathrooms",
+          "stories": "Floors", "parking": "Parking", "mainroad": "Main road access",
+          "guestroom": "Guest room", "basement": "Basement", "hotwaterheating": "Hot water heating",
+          "airconditioning": "Air conditioning"}
 
-PAGE_TITLE = "Intelligent Property Valuation"
-PAGE_ICON = "🏠"
-MODEL_PATH = Path("models/house_model.pkl")
-METADATA_PATH = Path("assets/model_metadata.json")
-
-NUMERICAL_FEATURES = ['area', 'bedrooms', 'bathrooms', 'stories', 'parking']
-BINARY_FEATURES = ['mainroad', 'guestroom', 'basement', 'hotwaterheating', 'airconditioning']
-ALL_FEATURES = NUMERICAL_FEATURES + BINARY_FEATURES
-
-st.set_page_config(
-    page_title=PAGE_TITLE,
-    page_icon=PAGE_ICON,
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="Habitat — Property intelligence", page_icon="◈", layout="wide", initial_sidebar_state="expanded")
 
 
-def _inject_global_styles() -> None:
-    st.markdown(
-        """
-        <style>
-          :root {
-            --pv-bg: #0B1220;
-            --pv-surface: rgba(15, 23, 42, 0.62);
-            --pv-border: rgba(148, 163, 184, 0.22);
-            --pv-text: rgba(226, 232, 240, 0.98);
-            --pv-muted: rgba(148, 163, 184, 0.95);
-            --pv-indigo: rgba(99, 102, 241, 1);
-            --pv-emerald: rgba(16, 185, 129, 1);
-            --pv-shadow: 0 18px 50px rgba(2, 6, 23, 0.25);
-          }
+def html(markup: str) -> None:
+    st.html(markup)
 
-          /* Page background + default typography */
-          .stApp {
-            background:
-              radial-gradient(1100px 750px at 10% 0%, rgba(99, 102, 241, 0.18), transparent 56%),
-              radial-gradient(1000px 700px at 92% 8%, rgba(16, 185, 129, 0.14), transparent 58%),
-              radial-gradient(900px 700px at 50% 100%, rgba(56, 189, 248, 0.10), transparent 55%),
-              linear-gradient(180deg, rgba(2, 6, 23, 0.0) 0%, rgba(2, 6, 23, 0.10) 100%);
-          }
 
-          /* Reduce awkward top padding */
-          div[data-testid="stAppViewContainer"] > .main {
-            padding-top: 1.25rem;
-          }
-
-          /* Hero */
-          .pv-hero {
-            padding: 1.25rem 1.25rem 1.1rem 1.25rem;
-            border: 1px solid var(--pv-border);
-            border-radius: 16px;
-            background:
-              radial-gradient(700px 300px at 15% 20%, rgba(99, 102, 241, 0.18), transparent 60%),
-              radial-gradient(600px 260px at 85% 30%, rgba(16, 185, 129, 0.14), transparent 60%),
-              linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.55));
-            box-shadow: var(--pv-shadow);
-            margin-bottom: 1rem;
-          }
-          .pv-hero-title {
-            font-size: 1.75rem;
-            font-weight: 750;
-            letter-spacing: -0.02em;
-            line-height: 1.2;
-            color: var(--pv-text);
-          }
-          .pv-hero-subtitle {
-            margin-top: 0.35rem;
-            color: var(--pv-muted);
-            font-size: 0.95rem;
-          }
-          .pv-badges {
-            margin-top: 0.7rem;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-          }
-          .pv-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.22rem 0.55rem;
-            border-radius: 999px;
-            font-size: 0.82rem;
-            border: 1px solid var(--pv-border);
-            background: rgba(2, 6, 23, 0.42);
-            color: rgba(226, 232, 240, 0.92);
-          }
-
-          /* Sidebar polish */
-          section[data-testid="stSidebar"] {
-            border-right: 1px solid rgba(148, 163, 184, 0.16);
-          }
-          section[data-testid="stSidebar"] > div {
-            background:
-              radial-gradient(900px 600px at 20% 0%, rgba(99, 102, 241, 0.10), transparent 55%),
-              linear-gradient(180deg, rgba(15, 23, 42, 0.60), rgba(15, 23, 42, 0.72));
-          }
-
-          /* Buttons */
-          button[kind="primary"] {
-            border-radius: 12px !important;
-          }
-
-          /* Tabs spacing */
-          div[data-testid="stTabs"] button {
-            border-radius: 12px !important;
-          }
-
-          /* Splash screen */
-          .pv-splash {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            display: grid;
-            place-items: center;
-            pointer-events: none;
-            background:
-              radial-gradient(1200px 800px at 10% 0%, rgba(99, 102, 241, 0.32), transparent 60%),
-              radial-gradient(1000px 700px at 90% 12%, rgba(16, 185, 129, 0.22), transparent 60%),
-              linear-gradient(180deg, rgba(2, 6, 23, 0.80), rgba(2, 6, 23, 0.92));
-            animation: pvSplashOut 0.65s ease forwards;
-            animation-delay: 1.15s;
-          }
-          .pv-splash-card {
-            width: min(520px, calc(100vw - 3rem));
-            border-radius: 18px;
-            border: 1px solid rgba(148, 163, 184, 0.22);
-            background: rgba(15, 23, 42, 0.65);
-            box-shadow: 0 25px 70px rgba(2, 6, 23, 0.40);
-            padding: 1.15rem 1.2rem;
-            backdrop-filter: blur(10px);
-          }
-          .pv-splash-top {
-            display: flex;
-            align-items: center;
-            gap: 0.85rem;
-          }
-          .pv-splash-mark {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            display: grid;
-            place-items: center;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.95), rgba(16, 185, 129, 0.9));
-            color: white;
-            font-size: 1.3rem;
-          }
-          .pv-splash-title {
-            font-weight: 760;
-            letter-spacing: -0.02em;
-            font-size: 1.05rem;
-            color: rgba(226, 232, 240, 0.98);
-            line-height: 1.1;
-          }
-          .pv-splash-sub {
-            margin-top: 0.25rem;
-            color: rgba(148, 163, 184, 0.95);
-            font-size: 0.92rem;
-          }
-          .pv-splash-bar {
-            margin-top: 0.85rem;
-            height: 10px;
-            border-radius: 999px;
-            background: rgba(148, 163, 184, 0.14);
-            overflow: hidden;
-          }
-          .pv-splash-bar > div {
-            height: 100%;
-            width: 40%;
-            border-radius: 999px;
-            background: linear-gradient(90deg, rgba(99, 102, 241, 0.95), rgba(56, 189, 248, 0.9), rgba(16, 185, 129, 0.9));
-            animation: pvLoad 1.25s ease-in-out infinite;
-          }
-          @keyframes pvLoad {
-            0% { transform: translateX(-60%); opacity: 0.75; }
-            50% { transform: translateX(120%); opacity: 1; }
-            100% { transform: translateX(260%); opacity: 0.75; }
-          }
-          @keyframes pvSplashOut {
-            to { opacity: 0; visibility: hidden; }
-          }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+def icon(name: str, size: int = 20) -> str:
+    paths = {
+        "home": '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M9 21v-8h6v8"/>',
+        "spark": '<path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4Z"/>',
+        "arrow": '<path d="M5 12h14M13 6l6 6-6 6"/>',
+        "check": '<path d="m5 12 4 4L19 6"/>',
+        "chart": '<path d="M4 4v16h16M8 15v-4m5 4V7m5 8v-6"/>',
+        "shield": '<path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6Z"/><path d="m8 12 3 3 5-6"/>',
+    }
+    svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="#9bb879" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">{paths.get(name, paths["home"])}</svg>'
+    encoded = base64.b64encode(svg.encode()).decode()
+    return f'<img alt="" aria-hidden="true" width="{size}" height="{size}" src="data:image/svg+xml;base64,{encoded}" />'
 
 
 def _format_inr(value: float) -> str:
-    try:
-        return f"₹{float(value):,.0f}"
-    except Exception:
-        return f"₹{value}"
+    return f"₹{float(value):,.0f}"
+
+
+def compact_inr(value: float) -> str:
+    return f"₹{value / 10_000_000:.2f} Cr" if value >= 10_000_000 else f"₹{value / 100_000:.2f} L"
 
 
 @st.cache_resource
@@ -209,253 +64,199 @@ def load_advisor_agent():
     return PropertyAdvisorAgent()
 
 
-def _render_splash_screen() -> None:
-    """
-    Displays a lightweight splash overlay once per browser session.
+@st.cache_resource
+def load_model():
+    return joblib.load(MODEL_PATH)
 
-    Notes:
-    - Streamlit reruns the script often; we guard with session_state.
-    - The overlay self-dismisses via CSS animation (no JS).
-    """
-    if st.session_state.get("pv_splash_shown"):
-        return
-    st.session_state.pv_splash_shown = True
 
-    st.markdown(
-        textwrap.dedent(
-            f"""
-            <div class="pv-splash" role="presentation">
-              <div class="pv-splash-card">
-                <div class="pv-splash-top">
-                  <div class="pv-splash-mark">{PAGE_ICON}</div>
-                  <div>
-                    <div class="pv-splash-title">{PAGE_TITLE}</div>
-                    <div class="pv-splash-sub">Valuation • Comps • PDF brief</div>
-                  </div>
-                </div>
-                <div class="pv-splash-bar"><div></div></div>
-              </div>
-            </div>
-            """
-        ),
-        unsafe_allow_html=True,
-    )
+@st.cache_data
+def image_uri():
+    path = ROOT / "assets/ui/residence.png"
+    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode() if path.exists() else ""
+
+
+def apply_preset(name: str = "Family home") -> None:
+    for key, value in PRESETS[name].items():
+        st.session_state[f"pv_{key}"] = value
+    st.session_state.pv_preset = name
+
+
+def reset_workspace() -> None:
+    apply_preset()
+    st.session_state.pop("pv_last_result", None)
+    st.session_state.pv_sample = True
+    st.session_state.pv_page = "Valuation studio"
+
+
+def section_title(number: str, title: str, subtitle: str = "") -> None:
+    html(f'<div class="section-title"><span class="section-number">{number}</span><div><h3>{title}</h3><p>{subtitle}</p></div></div>')
 
 
 class ValuationApp:
     def __init__(self):
-        self.model = self._load_model()
         self.validator = PropertyInputValidator()
-        self.metadata = self._load_metadata()
-        
-    def _load_model(self):
-        if not MODEL_PATH.exists():
-            st.error(f"### 🛑 Model Not Found")
-            st.warning(
-                f"The core valuation model was not found at `{MODEL_PATH}`. \n\n"
-                "**To fix this:**\n"
-                "Run the training script in your terminal:\n"
-                "```bash\npython3 src/train_model.py\n```\n"
-                "This will download the dataset and train the Random Forest model."
-            )
-            return None
-        
         try:
-            return joblib.load(MODEL_PATH)
-        except Exception as e:
-            st.error(f"Failed to load model: {e}")
-            return None
-
-    def _load_metadata(self):
-        if not METADATA_PATH.exists():
-            return None
-
+            self.metadata = json.loads(METADATA_PATH.read_text()) if METADATA_PATH.exists() else {}
+        except (OSError, json.JSONDecodeError):
+            self.metadata = {}
         try:
-            with open(METADATA_PATH, "r") as file:
-                return json.load(file)
+            self.model = load_model()
+        except Exception as exc:
+            self.model = None
+            st.error(f"The valuation model could not be loaded: {exc}")
+        for key, value in DEFAULTS.items():
+            st.session_state[f"pv_{key}"] = st.session_state.get(f"pv_{key}", value)
+        st.session_state.pv_preset = st.session_state.get("pv_preset", "Family home")
+        st.session_state.setdefault("pv_sample", True)
+        if "pv_last_result" not in st.session_state and self.model is not None:
+            self._run_valuation(**DEFAULTS)
+
+    def sidebar(self):
+        with st.sidebar:
+            html(f'<div class="brand"><div class="brand-mark">{icon("home", 25)}</div><div>habitat<span>PROPERTY INTELLIGENCE</span></div></div>')
+            html('<div class="workspace-badge"><span class="workspace-initial">P</span><div>Personal workspace<small>Property valuation advisor</small></div></div><div class="nav-label">WORKSPACE</div>')
+            page = st.radio("Workspace navigation", ["Valuation studio", "Comparable sales", "Model insights"], key="pv_page", label_visibility="collapsed")
+            st.button("＋  New valuation", on_click=reset_workspace, use_container_width=True)
+            html(f'<div class="sidebar-note"><span class="note-icon">{icon("spark", 23)}</span><h4>A little more clarity.<br>A smarter next move.</h4><p>Turn property details into an informed perspective.</p><div class="note-line"></div><span class="system-status"><i></i> {"Valuation engine ready" if self.model is not None else "Model unavailable"}</span></div>')
+            html('<div class="sidebar-footer"><span class="avatar">PV</span><div>Property workspace<small>India · INR</small></div><span class="footer-dot">•••</span></div>')
+        return page
+
+    def header(self, page):
+        html(f'<div class="topbar"><div>Workspace <span>/</span> <strong>{page}</strong></div><div class="topbar-right"><span class="local-pill"><i></i> Local knowledge base</span><span class="top-avatar">PV</span></div></div>')
+
+    def hero(self):
+        uri = image_uri()
+        html(f'''<section class="hero"><div class="hero-copy"><div class="eyebrow"><span></span> A NEW PERSPECTIVE ON PROPERTY</div><h1>Know its value.<br><em>See its potential.</em></h1><p>Thoughtful property decisions start with a clearer picture.<br> Explore valuations, comparable sales, and the story behind the numbers.</p><div class="hero-bottom"><span>{icon("shield", 16)} Model-backed valuations</span><b>Made for your next move {icon("arrow", 17)}</b></div></div><div class="hero-visual" style="background-image:url('{uri}')"><span class="image-tag">THE ART OF LIVING WELL</span><div class="image-caption"><span>Spaces with possibility.</span><small>Illustrative architecture · AI-generated</small></div><span class="image-arrow">↗</span></div></section>''')
+        html('<div class="workflow"><div><span class="step active">01</span><strong>Define your property</strong></div><span class="flow-line"></span><div><span class="step">02</span>Discover its value</div><span class="flow-line"></span><div><span class="step">03</span>Make an informed move</div><span class="workflow-end">YOUR NEXT CHAPTER STARTS HERE ↗</span></div>')
+
+    def form(self):
+        with st.container(border=True, key="property_card"):
+            section_title("01", "The property", "A few details. A more meaningful estimate.")
+            st.selectbox("Start with a property profile", list(PRESETS), key="pv_preset", on_change=lambda: apply_preset(st.session_state.pv_preset))
+            with st.form("valuation_form", border=False):
+                st.number_input("Floor area · sq ft", min_value=300, max_value=25000, step=50, key="pv_area")
+                cols = st.columns(2)
+                for idx, (field, maximum) in enumerate([("bedrooms", 10), ("bathrooms", 6), ("stories", 5), ("parking", 5)]):
+                    with cols[idx % 2]:
+                        st.number_input(LABELS[field], min_value=0 if field == "parking" else 1, max_value=maximum, step=1, key=f"pv_{field}")
+                html('<div class="amenity-heading">The little extras <span>AMENITIES</span></div>')
+                cols = st.columns(2)
+                for idx, field in enumerate(["mainroad", "airconditioning", "guestroom", "basement", "hotwaterheating"]):
+                    with cols[idx % 2]:
+                        st.checkbox(LABELS[field], key=f"pv_{field}")
+                submitted = st.form_submit_button("Discover property value  →", type="primary", use_container_width=True, disabled=self.model is None)
+                if submitted:
+                    st.session_state.pv_sample = False
+                    self._run_valuation(**{k: st.session_state[f"pv_{k}"] for k in DEFAULTS})
+            html('<div class="form-footnote">Your estimate uses 10 property features. No account needed.</div>')
+
+    def result(self):
+        result = st.session_state.get("pv_last_result")
+        if not result:
+            st.info("Enter your property details to generate a valuation.")
+            return
+        if result["status"] == "invalid":
+            st.error("These details need another look.")
+            for message in result["validation"].errors:
+                st.error(message)
+            return
+        if result["status"] == "error":
+            st.error("We couldn't complete the valuation. Please try again.")
+            st.caption(result.get("error", ""))
+            return
+        price = result["prediction"]
+        mae = self.metadata.get("metrics", {}).get("mae")
+        raw = result["raw_inputs"]
+        sample = st.session_state.get("pv_sample", False)
+        is_stale = any(st.session_state[f"pv_{k}"] != raw[k] for k in DEFAULTS)
+        badge = "SAMPLE VALUATION" if sample else "YOUR VALUATION"
+        if is_stale:
+            st.info("Details changed. Select ‘Discover property value’ to update this estimate.")
+        range_html = f'<div class="range-heading"><span>Indicative range · ± model MAE</span><strong>{compact_inr(max(0, price-mae))} – {compact_inr(price+mae)}</strong></div><div class="range-track"><span></span><i></i></div><div class="range-labels"><span>{compact_inr(max(0, price-mae))}</span><span>MODEL ESTIMATE</span><span>{compact_inr(price+mae)}</span></div>' if mae else ''
+        html(f'''<div class="valuation-card"><div class="valuation-top"><span>{icon("spark", 18)} THE BIG PICTURE</span><span class="result-badge">{badge}</span></div><div class="estimate-label">Estimated property value</div><div class="estimate-value">{compact_inr(price)}<span>INR</span></div><p class="estimate-summary">{raw['bedrooms']} bedrooms <span>·</span> {raw['bathrooms']} bathrooms <span>·</span> {raw['area']:,} sq ft</p>{range_html}<div class="valuation-disclaimer">Historical model estimate. The range shows average model error,<br>not a confidence interval or a live market quote.</div></div>''')
+        html(f'<div class="mini-metrics"><div><span>VALUE PER SQ FT</span><strong>{_format_inr(price/raw["area"])}</strong><small>Based on this estimate</small></div><div><span>COMPARABLE SALES</span><strong>{len(result["comps"]):02d}<b> properties</b></strong><small>Matched from our knowledge base</small></div></div>')
+        warnings = result["validation"].warnings
+        html(f'<div class="validation-strip">{icon("shield", 18)} <strong>{"Review recommended" if warnings else "Property checks passed"}</strong><span>{str(len(warnings))+" flags to review" if warnings else "No input anomalies"}</span></div>')
+        if warnings:
+            with st.expander("Review property checks", expanded=True):
+                for warning in warnings:
+                    st.warning(warning)
+        try:
+            report = build_property_report(result["inputs"], price, result["advice"], warnings, self.metadata, result["comps"])
+            st.download_button("↓  Download investment brief", report, file_name="habitat-investment-brief.pdf", mime="application/pdf", use_container_width=True)
         except Exception:
-            return None
+            st.warning("Your valuation is ready, but the PDF could not be generated. Please try again.")
+        html('<div class="export-caption">Your valuation, comparable sales & advisory. In one PDF.</div>')
 
-    def render_header(self):
-        advisory_mode = "Template-based advisor"
-        model_status = "Model loaded" if self.model is not None else "Model missing"
+    def intelligence(self):
+        result = st.session_state.get("pv_last_result", {})
+        left, right = st.columns([1.2, 1], gap="medium")
+        with left, st.container(border=True, key="advisor_card"):
+            html(f'<div class="card-heading"><span class="soft-icon">{icon("spark")}</span><h3>Beyond the numbers</h3><span class="small-tag">ADVISOR NOTES</span></div>')
+            if result.get("status") == "ok":
+                if result.get("advisory_error"):
+                    st.info("The valuation is ready. Advisory context is temporarily unavailable.")
+                else:
+                    text = result["advice"].split("Recommendation: ")[-1] if "Recommendation: " in result["advice"] else result["advice"]
+                    st.markdown(text)
+                    with st.expander("Explore the full property narrative"):
+                        st.markdown(result["advice"])
+                st.caption("Rule-based guidance · Static knowledge base · Verify local pricing")
+            else:
+                st.caption("Complete a valuation to explore the property narrative.")
+        with right, st.container(border=True, key="drivers_card"):
+            html(f'<div class="card-heading"><span class="soft-icon">{icon("chart")}</span><h3>What moves the value</h3></div>')
+            html('<p class="driver-intro">The strongest influences across the trained model.</p>')
+            importance = self.metadata.get("feature_importance", {})
+            for key, value in sorted(importance.items(), key=lambda x: x[1], reverse=True)[:3]:
+                html(f'<div class="driver"><span>{LABELS.get(key, key)}</span><div><i style="width:{value/max(importance.values())*100:.1f}%"></i></div><b>{value*100:.1f}%</b></div>')
+            html('<p class="driver-note">Global feature importance, not an individual price breakdown.</p>')
 
-        st.markdown(
-            f"""
-            <div class="pv-hero">
-              <div class="pv-hero-title">{PAGE_ICON} {PAGE_TITLE}</div>
-              <div class="pv-hero-subtitle">
-                ML valuation + RAG-grounded investment narrative — exportable as a PDF brief.
-              </div>
-              <div class="pv-badges">
-                <div class="pv-badge">🧠 {model_status}</div>
-                <div class="pv-badge">🤖 {advisory_mode}</div>
-                <div class="pv-badge">📄 PDF export</div>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    def render_sidebar(self):
-        st.sidebar.markdown("## Inputs")
-        st.sidebar.caption("Enter property details, then run a valuation. Results appear in the main panel.")
-
-        if self.model is None:
-            st.sidebar.warning("Model missing — run `python3 src/train_model.py` first.")
+    def comparables(self):
+        section_title("02", "A little market perspective", "Similar properties from the project's historical knowledge base.")
+        result = st.session_state.get("pv_last_result", {})
+        comps = result.get("comps") or []
+        if not comps:
+            st.info("Complete a valuation in the studio to find comparable properties.")
             return
-        st.sidebar.markdown("### Status")
-        st.sidebar.caption(f"Model: {'loaded' if self.model is not None else 'missing'}")
-        st.sidebar.caption("Advisor: Template-based")
-        if self.metadata and "metrics" in self.metadata:
-            metrics = self.metadata["metrics"]
-            st.sidebar.caption(f"R²: {metrics.get('r2', 0):.3f} • MAE: {_format_inr(metrics.get('mae', 0))}")
+        html('<div class="context-note">HISTORICAL CONTEXT <span>These records are static examples, not live listings or verified current transactions.</span></div>')
+        cols = st.columns(len(comps))
+        for i, (col, comp) in enumerate(zip(cols, comps)):
+            with col, st.container(border=True):
+                html(f'<div class="comp-icon">{icon("home", 28)}<span>COMPARABLE 0{i+1}</span></div>')
+                st.subheader(str(comp.get("location", "Unknown location")))
+                price = _parse_inr(comp.get("price"))
+                st.metric("Recorded sale price", compact_inr(price) if price is not None else "Unavailable")
+                st.write(f"{comp.get('area', '—'):,} sq ft · {comp.get('bedrooms', '—')} bed · {comp.get('bathrooms', '—')} bath")
+                st.caption(f"Recorded: {comp.get('date', 'Unknown')}")
+        st.dataframe(pd.DataFrame(comps), hide_index=True, use_container_width=True)
 
-        if "pv_last_result" not in st.session_state:
-            st.session_state.pv_last_result = None
-
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("### Quick presets")
-        c1, c2 = st.sidebar.columns(2)
-        if c1.button("Happy path", use_container_width=True):
-            st.session_state.pv_area = 2500
-            st.session_state.pv_bedrooms = 3
-            st.session_state.pv_bathrooms = 2
-            st.session_state.pv_stories = 2
-            st.session_state.pv_parking = 2
-            st.session_state.pv_mainroad = True
-            st.session_state.pv_guestroom = False
-            st.session_state.pv_basement = False
-            st.session_state.pv_hotwaterheating = False
-            st.session_state.pv_airconditioning = True
-            st.rerun()
-        if c2.button("Outlier demo", use_container_width=True):
-            st.session_state.pv_area = 5000
-            st.session_state.pv_bedrooms = 1
-            st.session_state.pv_bathrooms = 1
-            st.session_state.pv_stories = 2
-            st.session_state.pv_parking = 1
-            st.session_state.pv_mainroad = False
-            st.session_state.pv_guestroom = False
-            st.session_state.pv_basement = True
-            st.session_state.pv_hotwaterheating = False
-            st.session_state.pv_airconditioning = True
-            st.rerun()
-
-        with st.sidebar.form("valuation_form"):
-            st.markdown("### Property details")
-            area = st.number_input(
-                "Area (sq ft)",
-                min_value=300,
-                max_value=25000,
-                value=int(st.session_state.get("pv_area", 3000)),
-                step=50,
-                help="Built-up area in square feet.",
-            )
-            col1, col2 = st.columns(2)
-            with col1:
-                bedrooms = st.number_input(
-                    "Bedrooms",
-                    min_value=1,
-                    max_value=10,
-                    value=int(st.session_state.get("pv_bedrooms", 3)),
-                    step=1,
-                )
-                bathrooms = st.number_input(
-                    "Bathrooms",
-                    min_value=1,
-                    max_value=6,
-                    value=int(st.session_state.get("pv_bathrooms", 2)),
-                    step=1,
-                )
-            with col2:
-                stories = st.number_input(
-                    "Stories",
-                    min_value=1,
-                    max_value=5,
-                    value=int(st.session_state.get("pv_stories", 2)),
-                    step=1,
-                )
-                parking = st.number_input(
-                    "Parking spots",
-                    min_value=0,
-                    max_value=5,
-                    value=int(st.session_state.get("pv_parking", 1)),
-                    step=1,
-                )
-
-            st.markdown("### Amenities")
-            mainroad = st.checkbox("Main road access", value=bool(st.session_state.get("pv_mainroad", True)))
-            guestroom = st.checkbox("Guest room", value=bool(st.session_state.get("pv_guestroom", False)))
-            basement = st.checkbox("Basement", value=bool(st.session_state.get("pv_basement", False)))
-            hotwaterheating = st.checkbox("Hot water heating", value=bool(st.session_state.get("pv_hotwaterheating", False)))
-            airconditioning = st.checkbox("Air conditioning", value=bool(st.session_state.get("pv_airconditioning", True)))
-
-            submitted = st.form_submit_button("Estimate value", use_container_width=True, type="primary")
-
-        # Persist inputs for a smoother UX across reruns.
-        st.session_state.pv_area = area
-        st.session_state.pv_bedrooms = bedrooms
-        st.session_state.pv_bathrooms = bathrooms
-        st.session_state.pv_stories = stories
-        st.session_state.pv_parking = parking
-        st.session_state.pv_mainroad = mainroad
-        st.session_state.pv_guestroom = guestroom
-        st.session_state.pv_basement = basement
-        st.session_state.pv_hotwaterheating = hotwaterheating
-        st.session_state.pv_airconditioning = airconditioning
-
-        if st.sidebar.button("Reset", use_container_width=True):
-            for key in list(st.session_state.keys()):
-                if key.startswith("pv_"):
-                    del st.session_state[key]
-            st.rerun()
-
-        if submitted:
-            self._run_valuation(
-                area=area,
-                bedrooms=bedrooms,
-                bathrooms=bathrooms,
-                stories=stories,
-                parking=parking,
-                mainroad=mainroad,
-                guestroom=guestroom,
-                basement=basement,
-                hotwaterheating=hotwaterheating,
-                airconditioning=airconditioning,
-            )
-
-        last = st.session_state.get("pv_last_result")
-        if last and last.get("status") == "ok":
-            st.sidebar.markdown("---")
-            st.sidebar.markdown("### Latest result")
-            st.sidebar.metric("Estimated value", _format_inr(last["prediction"]))
-            if last["validation"].warnings:
-                st.sidebar.caption(f"⚠️ {len(last['validation'].warnings)} warning(s) flagged by guardrails.")
-            st.sidebar.caption("Tip: switch to the “Model Insights” tab for methodology and feature importance.")
-
-    def render_main(self):
-        if self.model is None:
+    def insights(self):
+        section_title("03", "A clearer view of the model", "Understand the evidence behind your estimate.")
+        metrics = self.metadata.get("metrics")
+        if not metrics:
+            st.info("Model performance metadata is unavailable.")
             return
-        last = st.session_state.get("pv_last_result")
-        if not last:
-            empty = st.container(border=True)
-            with empty:
-                st.subheader("Get started")
-                st.write(
-                    "Use the sidebar to enter property details, then click **Estimate value**. "
-                    "You’ll get an ML-backed valuation, comparable context, and an investment summary."
-                )
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.info("1) Input details\n\nArea, beds, baths, stories, parking, amenities.")
-                with c2:
-                    st.info("2) Run valuation\n\nGuardrails flag outliers before prediction.")
-                with c3:
-                    st.info("3) Export brief\n\nDownload a PDF you can share.")
-            return
-
-        self._render_result(last)
+        columns = st.columns(4)
+        for col, label, value in zip(columns, ["R² score", "Mean absolute error", "Root mean squared error", "Within 10% of actual"], [f"{metrics['r2']:.3f}", compact_inr(metrics["mae"]), compact_inr(metrics["rmse"]), f"{metrics.get('within_10_pct', 0)*100:.1f}%"]):
+            with col, st.container(border=True):
+                st.metric(label, value)
+        left, right = st.columns([1.2, 1], gap="large")
+        with left, st.container(border=True):
+            st.subheader("What the model pays attention to")
+            importance = self.metadata.get("feature_importance", {})
+            for key, value in sorted(importance.items(), key=lambda x: x[1], reverse=True):
+                html(f'<div class="driver"><span>{LABELS.get(key, key)}</span><div><i style="width:{value/max(importance.values())*100:.1f}%"></i></div><b>{value*100:.1f}%</b></div>')
+        with right:
+            st.subheader("Built on patterns. Grounded in context.")
+            st.write("The Random Forest model combines decision trees to estimate a price from ten physical and amenity features. The advisory layer retrieves relevant text and comparable sales from a local knowledge base, then applies explicit decision rules.")
+            st.write("Feature importance describes the model as a whole. It does not explain an individual property's price contribution. The model does not use a property's address or live market data.")
+            st.caption("The model's average absolute error is shown alongside every valuation. Use estimates as directional starting points.")
+            cm = self.metadata.get("classification_metrics", {})
+            if cm:
+                with st.expander("Additional evaluation · High-value classification"):
+                    st.write("These metrics use a derived price-above-median label; production predictions remain regression estimates.")
+                    st.json(cm)
 
     def _run_valuation(
         self,
@@ -574,227 +375,26 @@ class ValuationApp:
             "generated_at": datetime.now(),
         }
 
-    def _render_result(self, result: dict) -> None:
-        status = result.get("status")
-        if status == "invalid":
-            st.divider()
-            error_box = st.container(border=True)
-            with error_box:
-                st.markdown("#### ❌ Validation errors")
-                for err in result["validation"].errors:
-                    st.error(err, icon="🚨")
-                if result["validation"].warnings:
-                    st.markdown("#### ⚠️ Warnings")
-                    for warn in result["validation"].warnings:
-                        st.warning(warn, icon="⚠️")
-                st.info("Fix the inputs in the sidebar and try again.")
-            return
 
-        if status == "error":
-            st.divider()
-            box = st.container(border=True)
-            with box:
-                st.error("Prediction failed.")
-                st.caption(result.get("error", "Unknown error"))
-            return
-
-        if status != "ok":
-            return
-
-        prediction = result["prediction"]
-        raw_inputs = result["raw_inputs"]
-        validation = result["validation"]
-        advice = result["advice"]
-        comps = result.get("comps") or []
-        generated_at = result.get("generated_at")
-
-        st.divider()
-
-        top = st.container(border=True)
-        with top:
-            c1, c2 = st.columns([1.25, 1])
-            with c1:
-                st.markdown("### Estimated value")
-                if self.metadata and "metrics" in self.metadata and isinstance(self.metadata["metrics"].get("mae"), (int, float)):
-                    mae = float(self.metadata["metrics"]["mae"])
-                    lo = prediction - mae
-                    hi = prediction + mae
-                    a, b = st.columns([1, 1])
-                    with a:
-                        st.markdown(f"## {_format_inr(prediction)}")
-                    with b:
-                        st.metric("Typical range (±MAE)", f"{_format_inr(lo)} – {_format_inr(hi)}")
-                else:
-                    st.markdown(f"## {_format_inr(prediction)}")
-                subtitle = "This is a model estimate from historical training data; treat as a directional baseline."
-                if isinstance(generated_at, datetime):
-                    subtitle = f"{subtitle} Generated {generated_at.strftime('%Y-%m-%d %H:%M')}."
-                st.caption(subtitle)
-            with c2:
-                st.markdown("### Guardrails")
-                if validation.warnings:
-                    st.warning(f"{len(validation.warnings)} warning(s) flagged", icon="⚠️")
-                    with st.expander("View warnings"):
-                        for warn in validation.warnings:
-                            st.write(f"- {warn}")
-                else:
-                    st.success("No anomalies detected", icon="✅")
-                if self.metadata and "metrics" in self.metadata:
-                    m = self.metadata["metrics"]
-                    st.caption(
-                        f"Model metrics: R² {m.get('r2', 0):.3f} • "
-                        f"MAE {_format_inr(m.get('mae', 0))} • RMSE {_format_inr(m.get('rmse', 0))}"
-                    )
-
-        overview = st.container(border=True)
-        with overview:
-            st.markdown("### Property overview")
-            col_a, col_b, col_c, col_d = st.columns(4)
-            col_a.metric("Area", f"{int(raw_inputs['area']):,} sq ft")
-            col_b.metric("Bedrooms", int(raw_inputs["bedrooms"]))
-            col_c.metric("Bathrooms", int(raw_inputs["bathrooms"]))
-            col_d.metric("Stories", int(raw_inputs["stories"]))
-
-            col_e, col_f, col_g = st.columns(3)
-            col_e.metric("Parking", int(raw_inputs["parking"]))
-            col_f.metric("Amenities", f"{int(result['amenities'])}/5")
-            col_g.metric("Advisory", "Template")
-
-        c_left, c_right = st.columns([1.15, 0.85], gap="large")
-        with c_left:
-            advice_card = st.container(border=True)
-            with advice_card:
-                st.markdown("### 🤖 AI investment advisor")
-                st.write(advice)
-                if result.get("advisory_error"):
-                    with st.expander("View advisory error"):
-                        st.caption(result["advisory_error"])
-
-        with c_right:
-            comps_card = st.container(border=True)
-            with comps_card:
-                st.markdown("### 📍 Comparable context")
-                if not comps:
-                    st.info("No comparable sales found for this run.")
-                else:
-                    top_comps = comps[:3]
-                    cols = st.columns(len(top_comps))
-                    for idx, comp in enumerate(top_comps):
-                        with cols[idx]:
-                            with st.container(border=True):
-                                location = comp.get("location") or "N/A"
-                                price = comp.get("price")
-                                date = comp.get("date") or "N/A"
-                                area = comp.get("area")
-                                st.markdown(f"**{location}**")
-                                st.caption(f"📅 {date}")
-                                st.metric("Price", _format_inr(price) if price is not None else "N/A")
-                                if area is not None:
-                                    st.caption(f"Area: {area} sq ft")
-
-                    with st.expander("View as table"):
-                        comps_df = pd.DataFrame(comps)
-                        if "price" in comps_df.columns:
-                            comps_df["price"] = comps_df["price"].apply(_format_inr)
-                        st.dataframe(comps_df, use_container_width=True, hide_index=True)
-
-        st.markdown("---")
-        st.subheader("📄 Property investment brief")
-        metadata = self._load_metadata()
-        report_details = {
-            "area": raw_inputs["area"],
-            "bedrooms": raw_inputs["bedrooms"],
-            "bathrooms": raw_inputs["bathrooms"],
-            "stories": raw_inputs["stories"],
-            "parking": raw_inputs["parking"],
-            "mainroad": "Yes" if raw_inputs["mainroad"] else "No",
-            "guestroom": "Yes" if raw_inputs["guestroom"] else "No",
-            "basement": "Yes" if raw_inputs["basement"] else "No",
-            "hotwaterheating": "Yes" if raw_inputs["hotwaterheating"] else "No",
-            "airconditioning": "Yes" if raw_inputs["airconditioning"] else "No",
-            "amenities": f"{int(result['amenities'])}/5",
-        }
-        report_bytes = build_property_report(
-            property_details=report_details,
-            estimated_price=prediction,
-            advisory_text=advice,
-            validation_warnings=validation.warnings,
-            metadata=metadata,
-            comps=comps,
-        )
-        file_name = f"property-investment-brief-{datetime.now().strftime('%Y%m%d-%H%M%S')}.pdf"
-        st.caption("Download a PDF brief with valuation, comps, model metrics, and advisory.")
-        st.download_button(
-            label="Download PDF brief",
-            data=report_bytes,
-            file_name=file_name,
-            mime="application/pdf",
-            use_container_width=True,
-        )
 
 def main():
-    _inject_global_styles()
-    _render_splash_screen()
+    html(f'<style>{(ROOT / "assets/ui/styles.css").read_text()}</style>')
     app = ValuationApp()
-    
-    app.render_sidebar()
-    tab1, tab2 = st.tabs(["🏠 Valuation", "📊 Model Insights"])
-    
-    with tab1:
-        app.render_header()
-        app.render_main()
-        
-    with tab2:
-        st.header("Model Performance & Insights")
-        metadata = app._load_metadata()
-        if metadata:
-            
-            # Metrics
-            m1, m2, m3, m4 = st.columns(4)
-            metrics = metadata["metrics"]
-            m1.metric("R² Score", f"{metrics['r2']:.3f}")
-            m2.metric("MAE", f"₹{metrics['mae']:,.0f}")
-            m3.metric("RMSE", f"₹{metrics['rmse']:,.0f}")
-            within_10 = metrics.get("within_10_pct")
-            m4.metric("Within 10%", f"{within_10 * 100:.1f}%" if isinstance(within_10, (int, float)) else "N/A")
-
-            if metadata.get("classification_metrics"):
-                with st.expander("Accuracy / Precision / Recall (derived label)"):
-                    cm = metadata["classification_metrics"]
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric("Accuracy", f"{cm.get('accuracy', 0) * 100:.1f}%")
-                    c2.metric("Precision", f"{cm.get('precision', 0) * 100:.1f}%")
-                    c3.metric("Recall", f"{cm.get('recall', 0) * 100:.1f}%")
-                    c4.metric("F1", f"{cm.get('f1', 0) * 100:.1f}%")
-                    st.caption(
-                        "These are computed on a derived high-value label (price ≥ median) for reporting; "
-                        "the production model is still a regression estimator."
-                    )
-            
-            st.markdown("---")
-            st.subheader("Feature Importance")
-            st.info("This chart shows which property features most significantly influence the price prediction.")
-            
-            importance_df = pd.DataFrame({
-                'Feature': list(metadata["feature_importance"].keys()),
-                'Importance': list(metadata["feature_importance"].values())
-            }).sort_values(by='Importance', ascending=True)
-            
-            st.bar_chart(data=importance_df, x='Feature', y='Importance', horizontal=True)
-            
-            st.markdown("---")
-            st.subheader("Methodology")
-            st.write("""
-            The model uses a **Random Forest Regressor**, a robust machine learning algorithm that builds multiple 
-            decision trees and merges them together to get a more accurate and stable prediction.
-            
-            **Key Features Analyzed:**
-            - **Physical attributes:** Area, Bedrooms, Bathrooms, Stories.
-            - **Infrastructural features:** Main road access, Basement, Air conditioning.
-            - **Property status:** Parking available, Guest room, Hot water heating.
-            """)
-        else:
-            st.warning("Model metadata not found. Please run `python3 src/train_model.py` to generate insights.")
+    page = app.sidebar()
+    app.header(page)
+    if page == "Valuation studio":
+        app.hero()
+        left, right = st.columns([1, 1.06], gap="large")
+        with left:
+            app.form()
+        with right:
+            app.result()
+        app.intelligence()
+    elif page == "Comparable sales":
+        app.comparables()
+    else:
+        app.insights()
+    html('<footer class="page-footer"><span>habitat <b> / </b> A considered approach to property.</span><span>PROPERTY VALUATION AGENTIC ADVISOR</span></footer>')
 
 
 if __name__ == "__main__":

@@ -8,6 +8,26 @@ A high-performance hybrid AI/ML platform for real estate valuation. It pairs a d
 > [!NOTE]
 > The hosted app is fully deployed and healthy, but anonymous public access to the root URL depends on the current Streamlit Cloud visibility settings. If you encounter an authentication screen, the backend/model remains fully verifiable via the `/healthz` health endpoint.
 
+## Habitat interface
+
+The redesigned Streamlit workspace uses a forest-green navigation rail, warm ivory surfaces, an architectural hero, and a property-first valuation flow.
+
+- **Valuation studio:** editable property profiles, native keyboard-accessible inputs, validation feedback, a clearly labeled sample on first load, real model predictions, and PDF export.
+- **Comparable sales:** matched historical records from the existing local knowledge base.
+- **Model insights:** evaluation metrics, feature importance, and the model's limitations.
+- **Responsive layout:** desktop and mobile support, with collapsible native navigation and reduced-motion support.
+
+Run from the repository root:
+
+```bash
+source .venv/bin/activate
+streamlit run app.py
+```
+
+![Habitat desktop interface](docs/habitat-desktop.png)
+
+[Mobile preview](docs/habitat-mobile.png) · [Design and verification notes](docs/ui-redesign.md)
+
 ## 🎯 Project Overview
 The core objective is to estimate property value from historical housing data and then explain that estimate with grounded, retrieval-backed investment advice.
 

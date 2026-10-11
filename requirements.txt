@@ -17,14 +17,15 @@
 # ------------------------------------------------------------
 pandas>=1.5.0
 numpy>=1.23.0
-scikit-learn>=1.2.0
+# Match the version used to serialize the bundled valuation model.
+scikit-learn==1.8.0
 joblib>=1.2.0
 
 
 # ------------------------------------------------------------
 # Streamlit UI & Visualization
 # ------------------------------------------------------------
-streamlit>=1.29.0
+streamlit>=1.41.0
 altair<5
 matplotlib>=3.6.0
 seaborn>=0.12.0
